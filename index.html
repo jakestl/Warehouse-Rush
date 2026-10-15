@@ -25,19 +25,12 @@
             width: 100vw;
             height: 100vh;
             z-index: 1;
-            pointer-events: none;
         }
         .hud-layer {
             position: fixed;
             inset: 0;
-            z-index: 20;
+            z-index: 10;
             pointer-events: none;
-        }
-        .modal-layer {
-            position: fixed;
-            inset: 0;
-            z-index: 30;
-            pointer-events: auto;
         }
         .pointer-auto {
             pointer-events: auto;
@@ -65,7 +58,6 @@
 
     <div id="webgl-container"></div>
 
-    <!-- Active Gameplay HUD -->
     <div id="hud" class="hud-layer flex flex-col justify-between p-4 md:p-6 hidden">
         <div class="flex flex-wrap justify-between items-start gap-4 w-full">
             <div class="glass-panel px-4 py-3 rounded-2xl flex items-center space-x-3.5 border-l-4 border-blue-500 pointer-auto">
@@ -94,7 +86,7 @@
                     Pick up Aluminum Sheets or Tubes (Blue Beacon)
                 </div>
                 <div id="cargo-subtext" class="text-[11px] text-slate-300 font-medium mt-0.5">
-                    Follow the green overhead guidance arrow
+                    Follow the green 3D guidance arrow above your forklift
                 </div>
             </div>
 
@@ -105,7 +97,7 @@
                 </div>
                 <div class="glass-panel px-4 py-2.5 rounded-2xl text-center min-w-[95px]">
                     <div class="text-[10px] text-slate-400 font-extrabold tracking-wider uppercase">SHIFT CLOCK</div>
-                    <div id="timer-display" class="text-2xl font-black text-white font-mono">02:30</div>
+                    <div id="timer-display" class="text-2xl font-black text-white font-mono">03:00</div>
                 </div>
                 <div class="glass-panel px-4 py-2.5 rounded-2xl text-center min-w-[105px] border-r-4 border-emerald-500">
                     <div class="text-[10px] text-emerald-300 font-extrabold tracking-wider uppercase">BAYS 1-9</div>
@@ -122,7 +114,6 @@
             </div>
         </div>
 
-        <!-- Bottom HUD Controls, Bottom Notifications & Expanded Plant Radar -->
         <div class="flex flex-wrap justify-between items-end gap-4 w-full mt-auto">
             <div class="flex flex-col gap-2 pointer-auto">
                 <div class="grid grid-cols-3 gap-1.5 w-36 md:hidden mb-1">
@@ -144,6 +135,8 @@
                         <span>Drive / Reverse</span>
                         <span class="bg-slate-800 border border-slate-600 px-2 py-0.5 rounded font-mono text-white font-bold text-[11px] ml-1">A / D</span>
                         <span>Steer</span>
+                        <span class="bg-cyan-900/80 border border-cyan-400 px-2 py-0.5 rounded font-mono text-cyan-200 font-bold text-[11px] ml-1">SHIFT</span>
+                        <span class="text-cyan-300 font-semibold">Boost</span>
                     </div>
                     <div class="flex items-center gap-2">
                         <span class="bg-slate-800 border border-slate-600 px-2 py-0.5 rounded font-mono text-white font-bold text-[11px]">SPACE</span>
@@ -162,8 +155,17 @@
                             🎥 Cam: Chase 3D
                         </button>
                     </div>
+                    <!-- Shift Boost Stamina Visual Gauge -->
                     <div class="pt-1.5 border-t border-slate-700/80 flex items-center gap-2.5">
-                        <span class="text-[10px] font-extrabold uppercase tracking-wider text-yellow-400 shrink-0">📣 HORN (SCARE DOGS):</span>
+                        <span class="text-[10px] font-extrabold uppercase tracking-wider text-cyan-400 shrink-0 min-w-[118px]">⚡ BOOST (SHIFT):</span>
+                        <div class="w-28 h-2.5 bg-slate-800 rounded-full overflow-hidden border border-slate-600 p-0.5">
+                            <div id="boost-stamina-bar" class="h-full bg-cyan-400 rounded-full transition-all duration-75" style="width: 100%;"></div>
+                        </div>
+                        <span id="boost-status-text" class="text-[10px] font-mono font-extrabold text-cyan-400 min-w-[48px] text-right">3.0s</span>
+                    </div>
+                    <!-- Horn Cooldown Visual Gauge -->
+                    <div class="pt-1 border-t border-slate-800/80 flex items-center gap-2.5">
+                        <span class="text-[10px] font-extrabold uppercase tracking-wider text-yellow-400 shrink-0 min-w-[118px]">📣 HORN (SPACE):</span>
                         <div class="w-28 h-2.5 bg-slate-800 rounded-full overflow-hidden border border-slate-600 p-0.5">
                             <div id="horn-cooldown-bar" class="h-full bg-emerald-400 rounded-full transition-all duration-75" style="width: 100%;"></div>
                         </div>
@@ -172,12 +174,12 @@
                 </div>
             </div>
 
-            <!-- Bottom-docked Toast Notification & Safety Banner (never blocks center view) -->
-            <div class="flex flex-col items-center gap-2 mx-auto pb-1 pointer-events-none">
-                <div id="toast-alert" class="glass-panel px-5 py-2.5 rounded-2xl text-center font-extrabold text-xs md:text-sm opacity-0 transition-all duration-300 transform translate-y-3 border-2 border-yellow-400/60 shadow-2xl max-w-lg">
+            <!-- Bottom-Docked Notifications & Safety Banner -->
+            <div class="flex flex-col items-center gap-2 mx-auto pb-1">
+                <div id="toast-alert" class="glass-panel px-6 py-2.5 rounded-2xl text-center font-extrabold text-xs md:text-sm opacity-0 transition-all duration-300 transform translate-y-4 border-2 border-yellow-400/60 shadow-2xl max-w-lg">
                     Loaded Pallet!
                 </div>
-                <div id="safety-banner" class="glass-panel px-5 py-2 rounded-xl text-red-300 font-extrabold text-xs md:text-sm opacity-0 transition-opacity duration-200 border border-red-500/60 bg-red-950/80 flex items-center gap-2">
+                <div id="safety-banner" class="glass-panel px-5 py-2.5 rounded-xl text-red-300 font-extrabold text-xs md:text-sm opacity-0 transition-opacity duration-200 border border-red-500/60 bg-red-950/80 flex items-center gap-2">
                     <span class="text-lg">⚠️</span>
                     <span id="safety-text">CAUTION: FLOOR PERSONNEL IN AISLE!</span>
                 </div>
@@ -185,22 +187,21 @@
 
             <div class="glass-panel p-2.5 rounded-2xl pointer-auto flex flex-col items-center">
                 <div class="text-[10px] font-extrabold text-blue-300 uppercase tracking-wider mb-1 w-full flex justify-between px-1">
-                    <span>PLANT RADAR (WEST + EAST EXPANSION)</span>
+                    <span>PLANT RADAR (WEST + EAST)</span>
                     <span id="dog-radar-status" class="text-slate-400">440' LENGTH</span>
                 </div>
-                <canvas id="minimap-canvas" width="260" height="130" class="rounded-lg border border-slate-700 bg-slate-900"></canvas>
+                <canvas id="minimap-canvas" width="250" height="130" class="rounded-lg border border-slate-700 bg-slate-900"></canvas>
                 <div class="flex justify-between w-full text-[9px] text-slate-400 font-semibold mt-1 px-1">
-                    <span class="text-blue-400">● Raw Stock</span>
-                    <span class="text-amber-400">● Fab Cells</span>
-                    <span class="text-emerald-400">● Bays 1-9</span>
+                    <span class="text-blue-400">● Raw Al.</span>
+                    <span class="text-amber-400">● Fab</span>
+                    <span class="text-emerald-400">● Bays</span>
                     <span class="text-orange-400">▲ Dogs</span>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Title Screen Modal -->
-    <div id="start-screen" class="modal-layer bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4">
+    <div id="start-screen" class="hud-layer bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 pointer-auto">
         <div class="glass-panel max-w-xl w-full p-6 md:p-8 rounded-3xl border border-blue-500/40 text-center space-y-6 relative overflow-hidden">
             <div class="absolute -top-24 -right-24 w-56 h-56 bg-blue-600/20 rounded-full blur-3xl pointer-events-none"></div>
             
@@ -216,60 +217,55 @@
             </div>
 
             <div class="flex flex-col gap-3">
-                <button id="start-btn" type="button" class="w-full py-4 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white font-black text-lg rounded-2xl shadow-xl shadow-blue-600/30 transition-all transform hover:scale-[1.01] active:scale-[0.99] cursor-pointer">
+                <button id="start-btn" class="w-full py-4 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white font-black text-lg rounded-2xl shadow-xl shadow-blue-600/30 transition-all transform hover:scale-[1.01] active:scale-[0.99] cursor-pointer">
                     START 3D FORKLIFT SHIFT ➔
                 </button>
-                <div class="grid grid-cols-2 gap-3">
-                    <button id="how-to-play-btn" type="button" class="w-full py-3 bg-slate-800/80 hover:bg-slate-700 border border-slate-600 text-blue-300 font-extrabold text-sm rounded-xl transition cursor-pointer">
-                        HOW TO PLAY 📖
-                    </button>
-                    <button id="menu-music-btn" type="button" class="w-full py-3 bg-emerald-900/60 hover:bg-emerald-800/70 border border-emerald-500/40 text-emerald-200 font-extrabold text-sm rounded-xl transition cursor-pointer">
-                        🔊 MENU MUSIC: ON
-                    </button>
-                </div>
+                <button id="how-to-play-btn" class="w-full py-3 bg-slate-800/80 hover:bg-slate-700 border border-slate-600 text-blue-300 font-extrabold text-sm rounded-xl transition cursor-pointer">
+                    HOW TO PLAY 📖
+                </button>
             </div>
         </div>
     </div>
 
     <!-- How to Play Modal -->
-    <div id="how-to-play-modal" class="modal-layer bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4 hidden">
+    <div id="how-to-play-modal" class="hud-layer bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4 hidden pointer-auto">
         <div class="glass-panel max-w-xl w-full p-6 md:p-8 rounded-3xl border border-blue-500/40 text-left space-y-4 relative">
             <div class="flex justify-between items-center border-b border-slate-700 pb-3">
                 <h2 class="text-xl font-black text-white flex items-center gap-2">
                     <span>📖</span> HOW TO PLAY WAREHOUSE RUSH
                 </h2>
-                <button id="close-modal-btn" type="button" class="text-slate-400 hover:text-white font-black text-lg px-2.5 py-1 rounded-lg bg-slate-800 cursor-pointer">✕</button>
+                <button id="close-modal-btn" class="text-slate-400 hover:text-white font-black text-lg px-2.5 py-1 rounded-lg bg-slate-800 cursor-pointer">✕</button>
             </div>
 
             <p class="text-xs text-slate-300 leading-relaxed">
-                Explore the newly expanded 440-unit St. Charles plant! Drive between the West Plant and the East Laser Expansion past the 2-story Back Offices.
+                Step into our expanded 3D plant floor! Drive between the West Plant and the new East Laser Expansion past the 2-story Back Offices before the shift clock runs out.
             </p>
 
             <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
                 <div class="bg-slate-900/90 p-3 rounded-xl border border-blue-500/30">
-                    <div class="font-black text-blue-400 uppercase mb-1">1. Raw Stock (5 Zones)</div>
+                    <div class="font-black text-blue-400 uppercase mb-1">1. Raw Stock</div>
                     <p class="text-slate-300">Pick up <span class="text-white font-semibold">Aluminum Sheets</span>, <span class="text-white font-semibold">Tubes</span>, <span class="text-white font-semibold">Laser Tubes</span>, or <span class="text-white font-semibold">Laser Sheets</span> (Blue Beacon).</p>
                 </div>
                 <div class="bg-slate-900/90 p-3 rounded-xl border border-amber-500/30">
-                    <div class="font-black text-amber-400 uppercase mb-1">2. Fabrication (2 Cells)</div>
-                    <p class="text-slate-300">Assemble carts at either the <span class="text-white font-semibold">West Welding Booth</span> or <span class="text-white font-semibold">East Laser & Press Cell</span> (Amber Beacon).</p>
+                    <div class="font-black text-amber-400 uppercase mb-1">2. Fabrication</div>
+                    <p class="text-slate-300">Assemble carts at the <span class="text-white font-semibold">West Welding Booth</span> or <span class="text-white font-semibold">East Laser & Press Cell</span> (Amber Beacon).</p>
                 </div>
                 <div class="bg-slate-900/90 p-3 rounded-xl border border-emerald-500/30">
                     <div class="font-black text-emerald-400 uppercase mb-1">3. Deliver</div>
-                    <p class="text-slate-300">Deliver finished carts to <span class="text-emerald-300 font-bold">Bays 1–9</span> in the West Plant (Emerald Beacon).</p>
+                    <p class="text-slate-300">Deliver finished carts to <span class="text-emerald-300 font-bold">Bays 1–9</span> (Emerald Beacon).</p>
                 </div>
             </div>
 
             <div class="bg-slate-900/90 p-3.5 rounded-xl border border-slate-800 text-xs space-y-1.5">
                 <div class="font-black text-yellow-300 uppercase">Controls & Safety Rules:</div>
-                <p class="text-slate-300"><span class="text-white font-semibold">W/S</span> Drive/Reverse, <span class="text-white font-semibold">A/D</span> Steer, <span class="text-yellow-300 font-semibold">SPACE</span> Horn (Scares Dogs!), <span class="text-red-400 font-semibold">R</span> Fire Rocket, <span class="text-white font-semibold">C</span> Camera, <span class="text-white font-semibold">ESC</span> Menu.</p>
-                <p class="text-slate-300"><span class="text-orange-400 font-semibold">Level 2+:</span> Stray barking dogs spawn from bay doors across both halves of the plant. Follow the <span class="text-emerald-400 font-semibold">Crazy Taxi green overhead arrow</span> to your next beacon!</p>
+                <p class="text-slate-300"><span class="text-white font-semibold">W/S</span> Drive/Reverse, <span class="text-white font-semibold">A/D</span> Steer, <span class="text-cyan-300 font-semibold">HOLD SHIFT</span> Boost (1.5x Speed, 3s max), <span class="text-yellow-300 font-semibold">SPACE</span> Horn (Scares Dogs!), <span class="text-red-400 font-semibold">R</span> Fire Rocket, <span class="text-white font-semibold">C</span> Camera, <span class="text-white font-semibold">ESC</span> Menu.</p>
+                <p class="text-slate-300"><span class="text-orange-400 font-semibold">Level 2+:</span> Stray barking dogs spawn from bay doors and chase you. Honk your horn (<span class="text-yellow-300 font-semibold">SPACE</span>) to make nearby dogs whimper and run away, or fire rockets (<span class="text-red-400 font-semibold">R</span>) to blow them up safely! Avoid 3 safety strikes hitting personnel.</p>
             </div>
         </div>
     </div>
 
     <!-- Game Over / Level Complete Modal -->
-    <div id="game-over-screen" class="modal-layer bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4 hidden">
+    <div id="game-over-screen" class="hud-layer bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4 hidden pointer-auto">
         <div class="glass-panel max-w-md w-full p-8 rounded-3xl border border-blue-500/40 text-center space-y-6">
             <div id="go-badge" class="inline-block px-4 py-1 rounded-full text-xs font-black uppercase tracking-widest bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
                 National Cart Co. Shift Report
@@ -288,7 +284,7 @@
                     <div id="go-incidents" class="text-3xl font-black text-yellow-400 mt-1">0</div>
                 </div>
             </div>
-            <button id="restart-btn" type="button" class="w-full py-4 bg-blue-600 hover:bg-blue-500 text-white font-black text-lg rounded-2xl shadow-lg shadow-blue-600/40 transition-all cursor-pointer">
+            <button id="restart-btn" class="w-full py-4 bg-blue-600 hover:bg-blue-500 text-white font-black text-lg rounded-2xl shadow-lg shadow-blue-600/40 transition-all cursor-pointer">
                 RUN ANOTHER SHIFT ↻
             </button>
         </div>
@@ -340,7 +336,9 @@
                 dogBark: 'https://raw.githubusercontent.com/jakestl/Warehouse-Rush/main/Dog%20Bark.wav',
                 dogWhimper: 'https://raw.githubusercontent.com/jakestl/Warehouse-Rush/main/Dog%20Whimper.mp3',
                 ouch1: 'https://raw.githubusercontent.com/jakestl/Warehouse-Rush/main/Ouch1.mp3',
-                ouch2: 'https://raw.githubusercontent.com/jakestl/Warehouse-Rush/main/Ouch2.mp3'
+                ouch2: 'https://raw.githubusercontent.com/jakestl/Warehouse-Rush/main/Ouch2.mp3',
+                reverseBeep: 'https://raw.githubusercontent.com/jakestl/Warehouse-Rush/main/Reverse%20Beep.mp3',
+                boost: 'https://raw.githubusercontent.com/jakestl/Warehouse-Rush/main/Boost.mp3'
             };
 
             let musicMuted = false;
@@ -348,6 +346,10 @@
 
             const HORN_COOLDOWN_MAX = 5.0;
             let hornCooldownRemaining = 0;
+
+            const BOOST_MAX_DURATION = 3.0;
+            const BOOST_RECHARGE_RATE = 0.45;
+            let boostChargeRemaining = BOOST_MAX_DURATION;
 
             const menuMusicAudio = new Audio(AUDIO_URLS.menuMusic);
             menuMusicAudio.loop = true;
@@ -357,12 +359,50 @@
             gameMusicAudio.loop = true;
             gameMusicAudio.volume = 0.55;
 
+            const reverseBeepAudio = new Audio(AUDIO_URLS.reverseBeep);
+            reverseBeepAudio.loop = true;
+            reverseBeepAudio.volume = 0.75;
+            let isReverseBeepPlaying = false;
+
+            const boostLoopAudio = new Audio(AUDIO_URLS.boost);
+            boostLoopAudio.loop = true;
+            boostLoopAudio.volume = 0.85;
+            let isBoostAudioPlaying = false;
+
+            function setReverseBeepActive(shouldPlay) {
+                try {
+                    if (shouldPlay && !isReverseBeepPlaying) {
+                        isReverseBeepPlaying = true;
+                        reverseBeepAudio.play().catch(() => {});
+                    } else if (!shouldPlay && isReverseBeepPlaying) {
+                        isReverseBeepPlaying = false;
+                        reverseBeepAudio.pause();
+                        reverseBeepAudio.currentTime = 0;
+                    }
+                } catch (e) {}
+            }
+
+            function setBoostAudioActive(shouldPlay) {
+                try {
+                    if (shouldPlay && !isBoostAudioPlaying) {
+                        isBoostAudioPlaying = true;
+                        boostLoopAudio.play().catch(() => {});
+                    } else if (!shouldPlay && isBoostAudioPlaying) {
+                        isBoostAudioPlaying = false;
+                        boostLoopAudio.pause();
+                        boostLoopAudio.currentTime = 0;
+                    }
+                } catch (e) {}
+            }
+
             const sfxCache = {};
             Object.keys(AUDIO_URLS).forEach(key => {
-                if (key !== 'menuMusic' && key !== 'gameMusic') {
-                    const a = new Audio(AUDIO_URLS[key]);
-                    a.preload = 'auto';
-                    sfxCache[key] = a;
+                if (key !== 'menuMusic' && key !== 'gameMusic' && key !== 'reverseBeep' && key !== 'boost') {
+                    try {
+                        const a = new Audio(AUDIO_URLS[key]);
+                        a.preload = 'auto';
+                        sfxCache[key] = a;
+                    } catch (e) {}
                 }
             });
 
@@ -375,37 +415,39 @@
                 } catch (e) {}
             }
 
-            function syncMusicButtonLabels() {
-                const btn = document.getElementById('music-toggle-btn');
-                if (btn) btn.innerText = musicMuted ? '🔇 Music: OFF' : '🎵 Music: ON';
-                const menuBtn = document.getElementById('menu-music-btn');
-                if (menuBtn) menuBtn.innerText = musicMuted ? '🔇 MENU MUSIC: OFF' : '🔊 MENU MUSIC: ON';
-            }
-
             function startMenuMusic() {
-                gameMusicAudio.pause();
-                gameMusicAudio.currentTime = 0;
-                if (!musicMuted) {
-                    menuMusicAudio.play().catch(() => {});
-                }
+                try {
+                    gameMusicAudio.pause();
+                    gameMusicAudio.currentTime = 0;
+                    if (!musicMuted) {
+                        menuMusicAudio.play().catch(() => {});
+                    }
+                } catch (e) {}
             }
 
             function startBackgroundMusic() {
-                menuMusicAudio.pause();
-                menuMusicAudio.currentTime = 0;
-                if (!musicMuted) {
-                    gameMusicAudio.currentTime = 0;
-                    gameMusicAudio.play().catch(() => {});
-                }
+                try {
+                    menuMusicAudio.pause();
+                    menuMusicAudio.currentTime = 0;
+                    if (!musicMuted) {
+                        gameMusicAudio.currentTime = 0;
+                        gameMusicAudio.play().catch(() => {});
+                    }
+                } catch (e) {}
             }
 
             function stopBackgroundMusic() {
-                gameMusicAudio.pause();
+                try {
+                    gameMusicAudio.pause();
+                    setReverseBeepActive(false);
+                    setBoostAudioActive(false);
+                } catch (e) {}
             }
 
             function toggleMusicMute() {
                 musicMuted = !musicMuted;
-                syncMusicButtonLabels();
+                const btn = document.getElementById('music-toggle-btn');
+                if (btn) btn.innerText = musicMuted ? '🔇 Music: OFF' : '🎵 Music: ON';
                 if (musicMuted) {
                     menuMusicAudio.pause();
                     gameMusicAudio.pause();
@@ -415,13 +457,13 @@
                 }
             }
 
-            const unlockMenuAudio = () => {
+            const unlockMenuAudioOnce = () => {
                 if (!gameActive && !musicMuted && menuMusicAudio.paused) {
                     menuMusicAudio.play().catch(() => {});
                 }
             };
-            window.addEventListener('pointerdown', unlockMenuAudio);
-            window.addEventListener('keydown', unlockMenuAudio);
+            window.addEventListener('pointerdown', unlockMenuAudioOnce, { once: true });
+            window.addEventListener('keydown', unlockMenuAudioOnce, { once: true });
 
             function playDogBarkSound() { playSfx('dogBark', 0.85); }
             function playDogWhimperSound() { playSfx('dogWhimper', 0.95); }
@@ -432,6 +474,25 @@
                 lastWallHitSoundTime = now;
                 const intensity = Math.min(1.0, Math.max(0.4, Math.abs(impactSpeed) * 1.6));
                 playSfx('crash', intensity);
+            }
+
+            function updateBoostHUD(isBoostingNow) {
+                const bar = document.getElementById('boost-stamina-bar');
+                const txt = document.getElementById('boost-status-text');
+                if (!bar || !txt) return;
+
+                const pct = Math.max(0, Math.min(100, (boostChargeRemaining / BOOST_MAX_DURATION) * 100));
+                bar.style.width = `${pct}%`;
+
+                if (isBoostingNow) {
+                    bar.className = 'h-full bg-orange-400 rounded-full transition-all duration-75';
+                    txt.innerText = `${boostChargeRemaining.toFixed(1)}s`;
+                    txt.className = 'text-[10px] font-mono font-extrabold text-orange-400 min-w-[48px] text-right';
+                } else {
+                    bar.className = 'h-full bg-cyan-400 rounded-full transition-all duration-75';
+                    txt.innerText = `${boostChargeRemaining.toFixed(1)}s`;
+                    txt.className = 'text-[10px] font-mono font-extrabold text-cyan-400 min-w-[48px] text-right';
+                }
             }
 
             function updateHornCooldownHUD() {
@@ -494,16 +555,19 @@
             }
 
             // ============================================================================
-            // THREE.JS SCENE & EXPANDED FLOORPLAN GEOMETRY (440 UNITS TOTAL WIDTH)
-            // West Plant: x = -120 to +120 (unchanged layout)
-            // East Expansion: x = +120 to +320 (new Back Offices, Racks 11-20, Laser/Press equipment)
+            // EXPANDED WAREHOUSE DIMENSIONS (WEST PLANT: -120..+120, EAST EXPANSION: +120..+320)
             // ============================================================================
             const PLANT_MIN_X = -120;
             const PLANT_MAX_X = 320;
-            const WAREHOUSE_W = PLANT_MAX_X - PLANT_MIN_X; // 440 units
+            const WAREHOUSE_W = PLANT_MAX_X - PLANT_MIN_X; // 440 units total length
             const PLANT_CENTER_X = (PLANT_MIN_X + PLANT_MAX_X) / 2; // +100
             const WAREHOUSE_D = 220;
             const CEILING_H = 42;
+            const colliders = [];
+
+            function addBoxCollider(x, z, w, d, label) {
+                colliders.push({ minX: x - w / 2, maxX: x + w / 2, minZ: z - d / 2, maxZ: z + d / 2, label: label || 'obstacle' });
+            }
 
             const container = document.getElementById('webgl-container');
             const scene = new THREE.Scene();
@@ -594,11 +658,6 @@
                 return new THREE.CanvasTexture(c);
             }
 
-            const colliders = [];
-            function addBoxCollider(x, z, w, d, label) {
-                colliders.push({ minX: x - w / 2, maxX: x + w / 2, minZ: z - d / 2, maxZ: z + d / 2, label: label || 'obstacle' });
-            }
-
             const floorMesh = new THREE.Mesh(
                 new THREE.PlaneGeometry(WAREHOUSE_W, WAREHOUSE_D),
                 new THREE.MeshStandardMaterial({ map: createConcreteTexture(), roughness: 0.45, metalness: 0.15 })
@@ -613,17 +672,13 @@
                 m.rotation.x = -Math.PI / 2; m.position.set(x, 0.04, z);
                 scene.add(m);
             }
-            // West Plant floor stripes (unchanged)
             addFloorStripe(-48, 0, 0.5, 190);
             addFloorStripe(0, 0, 0.5, 190);
             addFloorStripe(46, 0, 0.5, 190);
-            // Extended North/South main aisle stripes across full 440-unit warehouse
             addFloorStripe(100, -68, 410, 0.5);
             addFloorStripe(100, 65, 410, 0.5);
-            // Orange/Blue expansion boundary line at x = 120 (north and south of Back Offices)
             addFloorStripe(120, -72, 0.7, 72, 0xf97316);
             addFloorStripe(120, 74, 0.7, 68, 0xf97316);
-            // East expansion aisle stripes
             addFloorStripe(195, 0, 0.5, 190);
             addFloorStripe(250, 0, 0.5, 190);
 
@@ -654,7 +709,6 @@
                 [-46, -45], [2, -45], [48, -45],
                 [-46, 15],  [2, 15],  [48, 15],
                 [-46, 65],  [2, 65],  [48, 65],
-                // East Expansion structural columns
                 [145, -45], [235, -45],
                 [145, 65],  [235, 65]
             ];
@@ -668,9 +722,7 @@
                 addBoxCollider(px, pz, 2.0, 2.0, 'Steel Column');
             });
 
-            // ============================================================================
-            // WEST FRONT OFFICES (UNCHANGED)
-            // ============================================================================
+            // Front Offices (West Plant - Unchanged)
             const officeGroup = new THREE.Group();
             const officeW = 34; const officeD = 68;
             const officeX = PLANT_MIN_X + officeW / 2 + 1; const officeZ = 8;
@@ -715,13 +767,7 @@
             scene.add(officeGroup);
             addBoxCollider(officeX, officeZ, officeW, officeD, 'Front Offices');
 
-            // ============================================================================
-            // NEW BACK OFFICES BUILDING (AT PLANT EXPANSION DIVIDER X=118, Z=5)
-            // Features:
-            // - 1st & 2nd floor continuous windows along the building
-            // - 1st floor doors at the North and South ends
-            // - 2 sets of yellow stairs on the West face leading up to 2nd floor doors
-            // ============================================================================
+            // Back Offices Building (At Center Expansion Line X=118, Z=5)
             function createBackOfficeBuilding() {
                 const boGroup = new THREE.Group();
                 const boX = 118;
@@ -736,14 +782,12 @@
                 const doorFrameMat = new THREE.MeshStandardMaterial({ color: 0x0b4f9c, roughness: 0.4 });
                 const safetyYellowMat = new THREE.MeshStandardMaterial({ color: 0xfacc15, metalness: 0.3, roughness: 0.35 });
 
-                // Main 2-story structure
                 const mainBox = new THREE.Mesh(new THREE.BoxGeometry(boW, boH, boD), boBodyMat);
                 mainBox.position.set(boX, boH / 2, boZ);
                 mainBox.castShadow = true;
                 mainBox.receiveShadow = true;
                 boGroup.add(mainBox);
 
-                // Dark slate base wainscot & roof trim
                 const baseTrim = new THREE.Mesh(new THREE.BoxGeometry(boW + 0.3, 3.2, boD + 0.3), boTrimMat);
                 baseTrim.position.set(boX, 1.6, boZ);
                 boGroup.add(baseTrim);
@@ -752,7 +796,6 @@
                 roofCap.position.set(boX, boH + 0.6, boZ);
                 boGroup.add(roofCap);
 
-                // Sign on West and East faces
                 const boSignTex = createBannerTexture('BACK OFFICES', 'ENGINEERING • LASER PROGRAMMING • QA', '#0b4f9c', '#ffffff');
                 const westSign = new THREE.Mesh(new THREE.PlaneGeometry(26, 4.8), new THREE.MeshBasicMaterial({ map: boSignTex }));
                 westSign.rotation.y = -Math.PI / 2;
@@ -764,10 +807,9 @@
                 eastSign.position.set(boX + boW / 2 + 0.15, 22.8, boZ);
                 boGroup.add(eastSign);
 
-                // Windows all along the 1st Floor (y = 6.8) and 2nd Floor (y = 16.5) on West & East sides
+                // Continuous 1st and 2nd floor windows
                 for (let wz = boZ - 28; wz <= boZ + 28; wz += 9.3) {
                     [6.8, 16.5].forEach(wy => {
-                        // West side windows
                         const wFrameW = new THREE.Mesh(new THREE.BoxGeometry(0.4, 4.2, 6.8), windowFrameMat);
                         wFrameW.position.set(boX - boW / 2 - 0.05, wy, wz);
                         boGroup.add(wFrameW);
@@ -775,7 +817,6 @@
                         wGlassW.position.set(boX - boW / 2 - 0.08, wy, wz);
                         boGroup.add(wGlassW);
 
-                        // East side windows
                         const wFrameE = wFrameW.clone();
                         wFrameE.position.set(boX + boW / 2 + 0.05, wy, wz);
                         boGroup.add(wFrameE);
@@ -785,8 +826,7 @@
                     });
                 }
 
-                // 1st Floor Doors at the North and South ends of the Back Office
-                // North 1st-floor door (at z = boZ - boD/2)
+                // 1st Floor North & South Doors
                 const northDoorFrame = new THREE.Mesh(new THREE.BoxGeometry(5.2, 8.2, 0.6), doorFrameMat);
                 northDoorFrame.position.set(boX, 4.1, boZ - boD / 2 - 0.1);
                 boGroup.add(northDoorFrame);
@@ -797,7 +837,6 @@
                 northDoorGlass.position.set(boX, 5.2, boZ - boD / 2 - 0.18);
                 boGroup.add(northDoorGlass);
 
-                // South 1st-floor door (at z = boZ + boD/2)
                 const southDoorFrame = northDoorFrame.clone();
                 southDoorFrame.position.set(boX, 4.1, boZ + boD / 2 + 0.1);
                 boGroup.add(southDoorFrame);
@@ -808,12 +847,11 @@
                 southDoorGlass.position.set(boX, 5.2, boZ + boD / 2 + 0.18);
                 boGroup.add(southDoorGlass);
 
-                // Helper to build a yellow steel staircase on the West face leading to a 2nd-floor door
+                // 2 Yellow Staircases on West side leading to 2nd Floor Doors
                 function buildYellowStairway(doorZ, dirZ) {
                     const stairX = boX - boW / 2 - 2.4;
                     const landingY = 12.8;
 
-                    // 2nd Floor Door on the West wall at (boX - boW/2, landingY, doorZ)
                     const dFrame = new THREE.Mesh(new THREE.BoxGeometry(0.6, 7.4, 4.2), doorFrameMat);
                     dFrame.position.set(boX - boW / 2 - 0.1, landingY + 3.7, doorZ);
                     boGroup.add(dFrame);
@@ -821,20 +859,17 @@
                     dPanel.position.set(boX - boW / 2 - 0.15, landingY + 3.4, doorZ);
                     boGroup.add(dPanel);
 
-                    // Top landing platform right outside the 2F door
                     const landing = new THREE.Mesh(new THREE.BoxGeometry(4.6, 0.45, 5.4), safetyYellowMat);
                     landing.position.set(stairX, landingY, doorZ);
                     landing.castShadow = true;
                     boGroup.add(landing);
 
-                    // Support posts under landing
                     [-2.0, 2.0].forEach(dz => {
                         const post = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, landingY, 8), safetyYellowMat);
                         post.position.set(stairX - 1.9, landingY / 2, doorZ + dz);
                         boGroup.add(post);
                     });
 
-                    // 14 yellow steps descending from the landing along dirZ
                     const numSteps = 14;
                     const runLength = 15.0;
                     for (let s = 0; s < numSteps; s++) {
@@ -847,7 +882,6 @@
                         boGroup.add(tread);
                     }
 
-                    // Handrails
                     const railLen = Math.hypot(landingY, runLength);
                     const railAngle = Math.atan2(landingY, runLength) * dirZ;
                     const stringer = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.45, railLen), safetyYellowMat);
@@ -856,20 +890,14 @@
                     boGroup.add(stringer);
                 }
 
-                // Stairs 1 (North-West side: climbs toward door at boZ - 16)
                 buildYellowStairway(boZ - 15, -1);
-                // Stairs 2 (South-West side: climbs toward door at boZ + 15)
                 buildYellowStairway(boZ + 15, 1);
 
                 scene.add(boGroup);
-                // Collider includes the Back Office and its west-facing yellow stairways
                 addBoxCollider(boX - 2.0, boZ, boW + 4.8, boD + 1.0, 'Back Offices');
             }
             createBackOfficeBuilding();
 
-            // ============================================================================
-            // BAY DOORS (WEST PLANT + NEW EAST EXPANSION DOCKS)
-            // ============================================================================
             function createBayDoorsRow(startX, count, zPos, labelTitle, labelSub, bannerColor) {
                 const group = new THREE.Group();
                 const spacing = 10;
@@ -893,7 +921,7 @@
                 scene.add(group);
             }
 
-            // Existing West Plant Bay Doors (unchanged)
+            // West Plant Bay Doors
             createBayDoorsRow(-95, 7, -WAREHOUSE_D / 2 + 1.2, 'BAYS 1 - 9', 'FINISHED GOODS & CART SHIPPING', '#0b4f9c');
             createBayDoorsRow(-15, 4, -WAREHOUSE_D / 2 + 1.2, 'BAYS 10 - 13', 'CENTRAL RECEIVING', '#1e293b');
             createBayDoorsRow(45, 6, -WAREHOUSE_D / 2 + 1.2, 'BAYS 14 - 22', 'EAST FREIGHT DOCKS', '#1e293b');
@@ -901,7 +929,7 @@
             createBayDoorsRow(15, 4, WAREHOUSE_D / 2 - 1.2, 'BAYS 32 - 37', 'SOUTH CENTRAL DOCKS', '#1e293b');
             createBayDoorsRow(65, 4, WAREHOUSE_D / 2 - 1.2, 'BAYS 23 - 31', 'RAW STEEL INTAKE', '#1e293b');
 
-            // New East Expansion Bay Doors from floorplan image
+            // East Expansion Bay Doors
             createBayDoorsRow(175, 6, -WAREHOUSE_D / 2 + 1.2, 'BAYS 41 - 46', 'EXPANSION DOCKS', '#0b4f9c');
             createBayDoorsRow(255, 5, -WAREHOUSE_D / 2 + 1.2, 'BAYS 47 - 51', 'EXPANSION SHIPPING', '#0b4f9c');
             createBayDoorsRow(185, 6, WAREHOUSE_D / 2 - 1.2, 'BAYS 52 - 57', 'LASER & TUBE INTAKE', '#1e293b');
@@ -948,25 +976,21 @@
                 addBoxCollider(x, z, widthX + 0.6, lengthZ + 0.6, 'Storage Rack');
             }
 
-            // Original West Plant Racks 1-10 (unchanged)
+            // West Plant Racks 1-10
             createIndustrialRack(25, -42, 46, 4); createIndustrialRack(42, -42, 46, 4);
             createIndustrialRack(68, -42, 46, 4); createIndustrialRack(85, -42, 46, 4);
             createIndustrialRack(25, 35, 42, 4);  createIndustrialRack(42, 35, 42, 4);
             createIndustrialRack(68, 35, 42, 4);  createIndustrialRack(85, 35, 42, 4);
             createIndustrialRack(-65, -42, 42, 4); createIndustrialRack(-30, 38, 44, 4);
 
-            // New East Expansion Racks 11-20 matching uploaded floorplan
-            // North-West pair: Rack 11 & Rack 12
+            // East Expansion Racks 11-20
             createIndustrialRack(162, -42, 46, 4);
             createIndustrialRack(180, -42, 46, 4);
-            // North-East trio: Rack 13, Rack 14, Rack 15
             createIndustrialRack(262, -42, 46, 4);
             createIndustrialRack(280, -42, 46, 4);
             createIndustrialRack(298, -42, 46, 4);
-            // South-West pair: Rack 16 & Rack 17
             createIndustrialRack(162, 38, 44, 4);
             createIndustrialRack(180, 38, 44, 4);
-            // South-East trio: Rack 18, Rack 19, Rack 20
             createIndustrialRack(262, 38, 44, 4);
             createIndustrialRack(280, 38, 44, 4);
             createIndustrialRack(298, 38, 44, 4);
@@ -978,7 +1002,7 @@
                 const cellGroup = new THREE.Group();
                 const pedestalMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.6, roughness: 0.4 });
                 const robotYellowMat = new THREE.MeshStandardMaterial({ color: 0xfacc15, metalness: 0.4, roughness: 0.3 });
-                const tableMat = new THREE.MeshStandardMaterial({ color: 0x475669, metalness: 0.7, roughness: 0.3 });
+                const tableMat = new THREE.MeshStandardMaterial({ color: 0x475569, metalness: 0.7, roughness: 0.3 });
 
                 const jigTable = new THREE.Mesh(new THREE.BoxGeometry(5.5, 2.2, 3.8), tableMat);
                 jigTable.position.set(0, 1.1, 2.6);
@@ -1075,23 +1099,20 @@
 
                 machineGroup.position.set(x, 0, z);
                 scene.add(machineGroup);
-                addBoxCollider(x, z, 11.0, 3.2, 'CNC Tube Bender');
+                addBoxCollider(x, z, 9.8, 2.2, 'CNC Tube Bender');
             }
 
-            // New East Expansion Equipment: Tube Laser, Flatbed Laser Cutter, Punch Press, Tube Bender #2
             function createTubeLaserMachine(x, z) {
                 const group = new THREE.Group();
                 const cyanBlueMat = new THREE.MeshStandardMaterial({ color: 0x0284c7, roughness: 0.35, metalness: 0.35 });
                 const darkEnclosureMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.5, metalness: 0.5 });
                 const safetyGlassMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, emissive: 0x0284c7, emissiveIntensity: 0.4, roughness: 0.1 });
 
-                // Long blue tube feed bed
                 const feedBed = new THREE.Mesh(new THREE.BoxGeometry(16.0, 2.4, 4.6), cyanBlueMat);
                 feedBed.position.set(0, 1.2, 0);
                 feedBed.castShadow = true;
                 group.add(feedBed);
 
-                // Laser cutting cabin on the right end
                 const laserCabin = new THREE.Mesh(new THREE.BoxGeometry(6.2, 5.2, 5.2), darkEnclosureMat);
                 laserCabin.position.set(4.2, 2.6, 0);
                 laserCabin.castShadow = true;
@@ -1101,7 +1122,6 @@
                 viewWindow.position.set(4.2, 3.2, 0);
                 group.add(viewWindow);
 
-                // Bundle of raw aluminum tubes on feed rack
                 for (let i = -1.2; i <= 1.2; i += 0.6) {
                     const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 13.5, 10), aluminumMat);
                     tube.rotation.z = Math.PI / 2;
@@ -1120,24 +1140,20 @@
                 const darkBedMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.5, metalness: 0.6 });
                 const laserGlowMat = new THREE.MeshBasicMaterial({ color: 0xfef08a });
 
-                // Shuttle table bed
                 const bed = new THREE.Mesh(new THREE.BoxGeometry(16.5, 2.0, 6.2), darkBedMat);
                 bed.position.set(0, 1.0, 0);
                 bed.castShadow = true;
                 group.add(bed);
 
-                // Sheet metal on shuttle table
                 const sheet = new THREE.Mesh(new THREE.BoxGeometry(7.2, 0.2, 4.8), aluminumMat);
                 sheet.position.set(-3.6, 2.1, 0);
                 group.add(sheet);
 
-                // Red enclosed laser housing on right side
                 const enclosure = new THREE.Mesh(new THREE.BoxGeometry(8.2, 5.4, 6.6), redHousingMat);
                 enclosure.position.set(3.8, 2.7, 0);
                 enclosure.castShadow = true;
                 group.add(enclosure);
 
-                // Animated gantry head over the sheet
                 const gantry = new THREE.Group();
                 gantry.position.set(-3.5, 2.8, 0);
                 const bridge = new THREE.Mesh(new THREE.BoxGeometry(0.9, 1.2, 6.4), redHousingMat);
@@ -1174,12 +1190,10 @@
                 addBoxCollider(x, z, 8.8, 7.5, 'Punch Press');
             }
 
-            // Original West Plant Fabrication Equipment (unchanged)
             createWeldingRobotCell(-18, -10);
             createWeldingRobotCell(-4, -10);
             createTubeBenderMachine(-11, 10);
 
-            // New East Expansion Fabrication Equipment (matching floorplan positions)
             createTubeLaserMachine(212, -10);
             createLaserCutterMachine(238, -10);
             createPunchPressMachine(212, 12);
@@ -1247,10 +1261,6 @@
             }
             populateFinishedGoodsBays();
 
-            // ============================================================================
-            // RAW MATERIAL ZONES (3 WEST + 2 NEW EAST LASER ZONES)
-            // FABRICATION STATIONS (1 WEST + 1 NEW EAST LASER/PRESS CELL)
-            // ============================================================================
             const rawZones = [
                 { x: 56,  z: -12, type: 'sheets', name: 'Raw Aluminum Sheets (West)' },
                 { x: 196, z: -2,  type: 'tubes',  name: 'Laser Tubes (East Expansion)' },
@@ -1295,9 +1305,6 @@
             }
             syncBeaconVisuals();
 
-            // ============================================================================
-            // FORKLIFT & CRAZY TAXI STYLE GREEN OVERHEAD ARROW
-            // ============================================================================
             const forkliftGroup = new THREE.Group();
             const forkliftState = { x: 0, z: 75, angle: Math.PI, speed: 0, maxSpeed: 0.44, accel: 0.014, friction: 0.92, turnRate: 0.026 };
 
@@ -1519,17 +1526,16 @@
                 forkliftGroup.add(rim);
             });
 
-            // Change #1: Crazy Taxi style extruded 3D semi-transparent bright green arrow
+            // Crazy Taxi Style Green Overhead Arrow
             const guideArrowGroup = new THREE.Group();
             const arrowShape = new THREE.Shape();
-            // Pointing along +Y in 2D shape space, then rotated to point along +Z
-            arrowShape.moveTo(0, 2.3);       // Sharp front tip
-            arrowShape.lineTo(1.55, 0.2);    // Right wing tip
-            arrowShape.lineTo(0.62, 0.2);    // Right shaft notch
-            arrowShape.lineTo(0.62, -1.85);  // Back right tail
-            arrowShape.lineTo(-0.62, -1.85); // Back left tail
-            arrowShape.lineTo(-0.62, 0.2);   // Left shaft notch
-            arrowShape.lineTo(-1.55, 0.2);   // Left wing tip
+            arrowShape.moveTo(0, 2.3);
+            arrowShape.lineTo(1.55, 0.2);
+            arrowShape.lineTo(0.62, 0.2);
+            arrowShape.lineTo(0.62, -1.85);
+            arrowShape.lineTo(-0.62, -1.85);
+            arrowShape.lineTo(-0.62, 0.2);
+            arrowShape.lineTo(-1.55, 0.2);
             arrowShape.closePath();
 
             const arrowExtrudeGeo = new THREE.ExtrudeGeometry(arrowShape, {
@@ -1540,7 +1546,7 @@
                 bevelSegments: 2
             });
             arrowExtrudeGeo.center();
-            arrowExtrudeGeo.rotateX(Math.PI / 2); // Lay flat so tip points strictly toward +Z
+            arrowExtrudeGeo.rotateX(Math.PI / 2);
 
             const crazyTaxiGreenMat = new THREE.MeshStandardMaterial({
                 color: 0x22c55e,
@@ -1556,7 +1562,6 @@
             const crazyArrowMesh = new THREE.Mesh(arrowExtrudeGeo, crazyTaxiGreenMat);
             guideArrowGroup.add(crazyArrowMesh);
 
-            // Bright lime wireframe border for unmistakable directional silhouette
             const arrowEdges = new THREE.LineSegments(
                 new THREE.EdgesGeometry(arrowExtrudeGeo),
                 new THREE.LineBasicMaterial({ color: 0xbbf7d0, transparent: true, opacity: 0.95 })
@@ -1573,9 +1578,7 @@
                 if (cargoType) cargoMount.add(buildCargoMesh(cargoType));
             }
 
-            // ============================================================================
-            // FLOOR PERSONNEL (YELLOW SHIRT EMPLOYEES WITH BASEBALL CAPS & TEMPS)
-            // ============================================================================
+            // Floor Personnel (Yellow Shirt Employees with Baseball Caps & Temps)
             const employees = [];
             function createEmployeeCharacter(type, startX, startZ, patrolAxis, patrolRange) {
                 const isEmployee = (type === 'employee');
@@ -1593,7 +1596,6 @@
                 const head = new THREE.Mesh(new THREE.SphereGeometry(0.52, 16, 16), skinMat);
                 head.position.y = 4.15; charGroup.add(head);
 
-                // Change #2: Baseball cap on the heads of yellow-shirt employees
                 if (isEmployee) {
                     const capNavyMat = new THREE.MeshStandardMaterial({ color: 0x0b4f9c, roughness: 0.5 });
                     const capAccentMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.4 });
@@ -1605,13 +1607,11 @@
                     capCrown.position.set(0, 4.18, 0);
                     charGroup.add(capCrown);
 
-                    // Forward-projecting baseball cap visor/bill (+Z is front of character)
                     const capVisor = new THREE.Mesh(new THREE.BoxGeometry(0.74, 0.08, 0.58), capNavyMat);
                     capVisor.position.set(0, 4.34, 0.52);
                     capVisor.rotation.x = 0.12;
                     charGroup.add(capVisor);
 
-                    // Top cap button
                     const capButton = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 8), capAccentMat);
                     capButton.position.set(0, 4.72, 0);
                     charGroup.add(capButton);
@@ -1664,14 +1664,12 @@
                 });
             }
 
-            // West Plant personnel
             createEmployeeCharacter('temp',     -48, -35, 'z', 38);
             createEmployeeCharacter('employee',   0, -20, 'z', 50);
             createEmployeeCharacter('temp',      55,  10, 'x', 32);
             createEmployeeCharacter('employee', -20,  65, 'x', 45);
             createEmployeeCharacter('employee',  55, -68, 'x', 40);
             createEmployeeCharacter('temp',      12,  35, 'z', 35);
-            // East Expansion personnel
             createEmployeeCharacter('employee', 195, -25, 'z', 45);
             createEmployeeCharacter('temp',     230,  65, 'x', 45);
             createEmployeeCharacter('employee', 248, -68, 'x', 42);
@@ -1865,7 +1863,7 @@
                 });
             }
 
-            const keys = { up: false, down: false, left: false, right: false, brake: false };
+            const keys = { up: false, down: false, left: false, right: false, brake: false, shift: false };
             window.addEventListener('keydown', (e) => {
                 if (e.key === 'Escape' && gameActive) {
                     quitToMainMenu();
@@ -1875,7 +1873,7 @@
                     cycleCameraMode();
                     return;
                 }
-                if ((e.key === 'm' || e.key === 'M')) {
+                if ((e.key === 'm' || e.key === 'M') && gameActive) {
                     toggleMusicMute();
                     return;
                 }
@@ -1883,6 +1881,7 @@
                     fireForkliftRocket();
                     return;
                 }
+                if (e.key === 'Shift') keys.shift = true;
                 if (e.key === 'w' || e.key === 'W' || e.key === 'ArrowUp') keys.up = true;
                 if (e.key === 's' || e.key === 'S' || e.key === 'ArrowDown') keys.down = true;
                 if (e.key === 'a' || e.key === 'A' || e.key === 'ArrowLeft') keys.left = true;
@@ -1893,6 +1892,7 @@
                 }
             });
             window.addEventListener('keyup', (e) => {
+                if (e.key === 'Shift') keys.shift = false;
                 if (e.key === 'w' || e.key === 'W' || e.key === 'ArrowUp') keys.up = false;
                 if (e.key === 's' || e.key === 'S' || e.key === 'ArrowDown') keys.down = false;
                 if (e.key === 'a' || e.key === 'A' || e.key === 'ArrowLeft') keys.left = false;
@@ -1900,15 +1900,14 @@
                 if (e.key === ' ') keys.brake = false;
             });
 
-            // Change #3: Bottom-docked toast notifications so center view is unobstructed
             function showToast(msg, borderClass) {
                 const t = document.getElementById('toast-alert');
                 if (!t) return;
                 t.innerText = msg;
-                t.className = `glass-panel px-5 py-2.5 rounded-2xl text-center font-extrabold text-xs md:text-sm border-2 ${borderClass} shadow-2xl opacity-100 transform translate-y-0 transition-all duration-300 max-w-lg`;
+                t.className = `glass-panel px-6 py-2.5 rounded-2xl text-center font-extrabold text-xs md:text-sm border-2 ${borderClass} shadow-2xl opacity-100 transform translate-y-0 transition-all duration-300 max-w-lg`;
                 if (toastTimeoutId) clearTimeout(toastTimeoutId);
                 toastTimeoutId = setTimeout(() => {
-                    t.className = `glass-panel px-5 py-2.5 rounded-2xl text-center font-extrabold text-xs md:text-sm border-2 ${borderClass} shadow-2xl opacity-0 transform translate-y-3 transition-all duration-300 max-w-lg`;
+                    t.className = `glass-panel px-6 py-2.5 rounded-2xl text-center font-extrabold text-xs md:text-sm border-2 ${borderClass} shadow-2xl opacity-0 transform translate-y-4 transition-all duration-300 max-w-lg`;
                 }, 2800);
             }
 
@@ -1919,7 +1918,7 @@
                 if (missionStep === 'pickup_raw') {
                     label.innerText = 'STEP 1: RAW MATERIAL PICKUP';
                     text.innerText = `Pick up ${rawZones[activeRawIndex].name} (Blue Beacon)`;
-                    sub.innerText = 'Follow the green overhead guidance arrow';
+                    sub.innerText = 'Follow the green 3D guidance arrow above your forklift';
                 } else if (missionStep === 'fabricate') {
                     label.innerText = 'STEP 2: CART FABRICATION';
                     text.innerText = `Assemble at ${fabricationZones[activeFabIndex].name} (${currentCartSpec.name})`;
@@ -1944,7 +1943,6 @@
                 const tx = (wx) => ((wx - PLANT_MIN_X) / WAREHOUSE_W) * mapW;
                 const tz = (wz) => ((wz + WAREHOUSE_D / 2) / WAREHOUSE_D) * mapH;
 
-                // Expansion divider dashed line at x = 120
                 minimapCtx.strokeStyle = '#f97316';
                 minimapCtx.lineWidth = 1;
                 minimapCtx.setLineDash([3, 3]);
@@ -1954,7 +1952,6 @@
                 minimapCtx.stroke();
                 minimapCtx.setLineDash([]);
 
-                // Colliders on Minimap (Offices, Racks, Laser/Press Equipment)
                 colliders.forEach(c => {
                     const rx = tx(c.minX);
                     const rz = tz(c.minZ);
@@ -1965,13 +1962,13 @@
                         minimapCtx.fillStyle = '#15803d';
                         minimapCtx.fillRect(rx, rz, rw, rd);
                         minimapCtx.strokeStyle = '#ea580c';
-                        minimapCtx.lineWidth = 0.7;
+                        minimapCtx.lineWidth = 0.8;
                         minimapCtx.strokeRect(rx, rz, rw, rd);
                     } else if (c.label === 'Front Offices' || c.label === 'Back Offices') {
-                        minimapCtx.fillStyle = '#1e293b';
+                        minimapCtx.fillStyle = '#334155';
                         minimapCtx.fillRect(rx, rz, rw, rd);
                         minimapCtx.strokeStyle = '#38bdf8';
-                        minimapCtx.lineWidth = 1.0;
+                        minimapCtx.lineWidth = 0.9;
                         minimapCtx.strokeRect(rx, rz, rw, rd);
                     } else if (c.label === 'Tube Laser') {
                         minimapCtx.fillStyle = '#0284c7';
@@ -1987,7 +1984,7 @@
 
                 const target = getActiveTargetCoords();
                 minimapCtx.fillStyle = (missionStep === 'pickup_raw') ? '#3b82f6' : (missionStep === 'fabricate' ? '#f59e0b' : '#10b981');
-                minimapCtx.beginPath(); minimapCtx.arc(tx(target.x), tz(target.z), 4.2, 0, Math.PI * 2); minimapCtx.fill();
+                minimapCtx.beginPath(); minimapCtx.arc(tx(target.x), tz(target.z), 4, 0, Math.PI * 2); minimapCtx.fill();
 
                 activeDogs.forEach(dog => {
                     const dx = tx(dog.mesh.position.x);
@@ -2002,7 +1999,7 @@
                 });
 
                 minimapCtx.fillStyle = '#22c55e';
-                minimapCtx.beginPath(); minimapCtx.arc(tx(forkliftState.x), tz(forkliftState.z), 3.6, 0, Math.PI * 2); minimapCtx.fill();
+                minimapCtx.beginPath(); minimapCtx.arc(tx(forkliftState.x), tz(forkliftState.z), 3.5, 0, Math.PI * 2); minimapCtx.fill();
             }
 
             let lastPenaltyTime = 0;
@@ -2011,9 +2008,10 @@
                 const rawDt = lastFrameTime ? (time - lastFrameTime) / 16.667 : 1;
                 lastFrameTime = time;
                 const dt = Math.min(Math.max(rawDt, 0.2), 2.5);
+                const dtSec = dt / 60;
 
                 if (gameActive && hornCooldownRemaining > 0) {
-                    hornCooldownRemaining = Math.max(0, hornCooldownRemaining - (dt / 60));
+                    hornCooldownRemaining = Math.max(0, hornCooldownRemaining - dtSec);
                     updateHornCooldownHUD();
                 }
 
@@ -2271,16 +2269,44 @@
                 }
 
                 if (!gameActive) {
-                    const orbitAngle = time * 0.00022;
+                    setReverseBeepActive(false);
+                    setBoostAudioActive(false);
+                    const orbitAngle = time * 0.00025;
                     camera.position.set(100 + Math.sin(orbitAngle) * 125, 34, Math.cos(orbitAngle) * 95);
                     camera.lookAt(100, 6, 0);
                     return;
                 }
 
-                if (keys.up) forkliftState.speed = Math.min(forkliftState.speed + forkliftState.accel * dt, forkliftState.maxSpeed);
+                // Shift Boost Logic (1.5x speed, 3.0s max duration, partial recharge allowed)
+                const wantsBoost = keys.shift && keys.up && !keys.down && boostChargeRemaining > 0.02;
+                let isActivelyBoosting = false;
+
+                if (wantsBoost) {
+                    boostChargeRemaining = Math.max(0, boostChargeRemaining - dtSec);
+                    isActivelyBoosting = boostChargeRemaining > 0;
+                } else if (!keys.shift) {
+                    boostChargeRemaining = Math.min(BOOST_MAX_DURATION, boostChargeRemaining + BOOST_RECHARGE_RATE * dtSec);
+                }
+
+                const activeMaxSpeed = isActivelyBoosting ? forkliftState.maxSpeed * 1.5 : forkliftState.maxSpeed;
+                const activeAccel = isActivelyBoosting ? forkliftState.accel * 1.75 : forkliftState.accel;
+
+                if (keys.up) forkliftState.speed = Math.min(forkliftState.speed + activeAccel * dt, activeMaxSpeed);
                 else if (keys.down) forkliftState.speed = Math.max(forkliftState.speed - forkliftState.accel * dt, -forkliftState.maxSpeed * 0.6);
                 else if (keys.brake) forkliftState.speed *= Math.pow(0.82, dt);
                 else forkliftState.speed *= Math.pow(forkliftState.friction, dt);
+
+                if (!isActivelyBoosting && forkliftState.speed > forkliftState.maxSpeed) {
+                    forkliftState.speed = Math.max(forkliftState.maxSpeed, forkliftState.speed * Math.pow(0.95, dt));
+                }
+
+                updateBoostHUD(isActivelyBoosting);
+
+                // Play Boost.mp3 only while Shift is held down and forklift is moving forward
+                setBoostAudioActive(isActivelyBoosting && keys.shift && forkliftState.speed > 0.02);
+
+                // Play Reverse Beep.mp3 when reversing
+                setReverseBeepActive(forkliftState.speed < -0.02);
 
                 if (Math.abs(forkliftState.speed) > 0.01) {
                     const dirMultiplier = forkliftState.speed >= 0 ? 1 : -1;
@@ -2316,18 +2342,20 @@
                 forkliftGroup.position.set(forkliftState.x, 0, forkliftState.z);
                 forkliftGroup.rotation.y = forkliftState.angle;
 
-                // Change #4: Inverted steeringRig rotation sign so turning left rotates counter-clockwise in First Person view
+                // Inverted steering wheel Z roll so turning left rotates counter-clockwise in First Person
                 const targetWheelTurn = (keys.left ? -0.65 : (keys.right ? 0.65 : 0));
                 steeringRig.rotation.z += (targetWheelTurn - steeringRig.rotation.z) * 0.2;
 
                 const target = getActiveTargetCoords();
                 const angleToTarget = Math.atan2(target.x - forkliftState.x, target.z - forkliftState.z);
                 guideArrowGroup.rotation.y = angleToTarget - forkliftState.angle;
-                // Subtle Crazy Taxi floating/bobbing animation on the overhead arrow
                 guideArrowGroup.position.y = 9.2 + Math.sin(time * 0.008) * 0.35;
 
                 const mph = Math.abs(forkliftState.speed * 24.0).toFixed(1);
-                document.getElementById('speed-readout').innerText = `${mph} MPH`;
+                const speedEl = document.getElementById('speed-readout');
+                if (speedEl) {
+                    speedEl.innerText = isActivelyBoosting ? `⚡ ${mph} MPH` : `${mph} MPH`;
+                }
 
                 driverBodyGroup.visible = (cameraMode !== 'first_person');
 
@@ -2345,13 +2373,25 @@
                         forkliftState.z + cosA * 10
                     );
                 } else {
+                    // Keep camera strictly inside exterior walls so you are never blind near boundaries
                     const camDist = cameraMode === 'chase' ? 16.5 : 28.0;
                     const camHeight = cameraMode === 'chase' ? 8.2 : 22.0;
-                    const desiredCamX = forkliftState.x - Math.sin(forkliftState.angle) * camDist;
-                    const desiredCamZ = forkliftState.z - Math.cos(forkliftState.angle) * camDist;
-                    camera.position.x += (desiredCamX - camera.position.x) * 0.12;
-                    camera.position.z += (desiredCamZ - camera.position.z) * 0.12;
-                    camera.position.y += (camHeight - camera.position.y) * 0.12;
+                    const wallMargin = 4.5;
+                    const minCamX = PLANT_MIN_X + wallMargin;
+                    const maxCamX = PLANT_MAX_X - wallMargin;
+                    const minCamZ = -WAREHOUSE_D / 2 + wallMargin;
+                    const maxCamZ = WAREHOUSE_D / 2 - wallMargin;
+
+                    const desiredCamX = Math.min(maxCamX, Math.max(minCamX, forkliftState.x - Math.sin(forkliftState.angle) * camDist));
+                    const desiredCamZ = Math.min(maxCamZ, Math.max(minCamZ, forkliftState.z - Math.cos(forkliftState.angle) * camDist));
+
+                    camera.position.x += (desiredCamX - camera.position.x) * 0.15;
+                    camera.position.z += (desiredCamZ - camera.position.z) * 0.15;
+                    camera.position.y += (camHeight - camera.position.y) * 0.14;
+
+                    camera.position.x = Math.min(maxCamX, Math.max(minCamX, camera.position.x));
+                    camera.position.z = Math.min(maxCamZ, Math.max(minCamZ, camera.position.z));
+
                     camera.lookAt(forkliftState.x + Math.sin(forkliftState.angle) * 10, 3.2, forkliftState.z + Math.cos(forkliftState.angle) * 10);
                 }
 
@@ -2362,7 +2402,6 @@
                         currentCargoType = rawItem.type;
                         setForkliftCargoVisual(currentCargoType);
                         currentCartSpec = cartCatalog[score % cartCatalog.length];
-                        // Route to the East Fabrication Cell when picking up East Laser materials, or alternate cells
                         activeFabIndex = (rawItem.x > 120) ? 1 : (score % fabricationZones.length);
                         missionStep = 'fabricate';
                         playSound('pickup');
@@ -2432,7 +2471,11 @@
                 dogsSpawnedThisLevel = 0;
                 nextDogSpawnTimer = 95;
                 hornCooldownRemaining = 0;
+                boostChargeRemaining = BOOST_MAX_DURATION;
                 updateHornCooldownHUD();
+                updateBoostHUD(false);
+                setReverseBeepActive(false);
+                setBoostAudioActive(false);
 
                 forkliftState.x = 0; forkliftState.z = 75; forkliftState.angle = Math.PI; forkliftState.speed = 0;
                 document.getElementById('level-display').innerText = `LVL ${currentLevel}`;
@@ -2495,7 +2538,7 @@
                 stopBackgroundMusic();
                 startMenuMusic();
                 clearInterval(timerInterval);
-                keys.up = false; keys.down = false; keys.left = false; keys.right = false; keys.brake = false;
+                keys.up = false; keys.down = false; keys.left = false; keys.right = false; keys.brake = false; keys.shift = false;
                 forkliftState.speed = 0;
                 activeDogs.forEach(d => scene.remove(d.mesh));
                 activeDogs.length = 0;
@@ -2526,9 +2569,6 @@
             document.getElementById('close-modal-btn').addEventListener('click', () => {
                 document.getElementById('how-to-play-modal').classList.add('hidden');
             });
-
-            const menuMusicBtn = document.getElementById('menu-music-btn');
-            if (menuMusicBtn) menuMusicBtn.addEventListener('click', toggleMusicMute);
 
             document.getElementById('restart-btn').addEventListener('click', () => {
                 if (modalNextAction === 'next_level') {
@@ -2570,9 +2610,9 @@
                 renderer.setSize(window.innerWidth, window.innerHeight);
             });
 
-            // Start 3D loop immediately so preview and buttons work right away
-            animate(0);
-            startMenuMusic();
+            window.onload = function() {
+                animate(0);
+            };
         })();
     </script>
 </body>
