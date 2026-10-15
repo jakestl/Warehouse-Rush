@@ -1,0 +1,2150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>National Cart Co. - Warehouse Rush 3D</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&display=swap" rel="stylesheet">
+    <style>
+        body, html {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #090d16;
+            width: 100vw;
+            height: 100vh;
+            user-select: none;
+        }
+        #webgl-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 1;
+        }
+        .hud-layer {
+            position: fixed;
+            inset: 0;
+            z-index: 10;
+            pointer-events: none;
+        }
+        .pointer-auto {
+            pointer-events: auto;
+        }
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.88);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(59, 130, 246, 0.35);
+            box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.6);
+        }
+        .ncc-blue-bg {
+            background-color: #0b4f9c;
+        }
+        @keyframes pulse-ring {
+            0% { transform: scale(0.95); opacity: 0.9; }
+            50% { transform: scale(1.03); opacity: 1; }
+            100% { transform: scale(0.95); opacity: 0.9; }
+        }
+        .objective-pulse {
+            animation: pulse-ring 2s infinite ease-in-out;
+        }
+    </style>
+</head>
+<body class="text-white antialiased">
+
+    <div id="webgl-container"></div>
+
+    <div id="hud" class="hud-layer flex flex-col justify-between p-4 md:p-6 hidden">
+        <div class="flex flex-wrap justify-between items-start gap-4 w-full">
+            <div class="glass-panel px-4 py-3 rounded-2xl flex items-center space-x-3.5 border-l-4 border-blue-500 pointer-auto">
+                <div class="w-12 h-12 rounded-xl ncc-blue-bg flex items-center justify-center shadow-inner border border-blue-400/40 shrink-0">
+                    <svg viewBox="0 0 120 70" class="w-9 h-9 fill-white">
+                        <path d="M8,62 L8,24 C8,10 16,4 30,4 L40,4 C54,4 62,10 62,24 L62,62 L46,62 L46,24 C46,19 43,17 35,17 C27,17 24,19 24,24 L24,62 Z" />
+                        <path d="M68,24 C68,10 76,4 90,4 L115,4 L115,17 L90,17 C83,17 81,20 81,26 L81,40 C81,46 83,49 90,49 L115,49 L115,62 L90,62 C76,62 68,56 68,42 Z" />
+                        <rect x="85" y="27" width="30" height="12" rx="3" />
+                    </svg>
+                </div>
+                <div>
+                    <div class="flex items-center space-x-2">
+                        <h1 class="font-black text-base md:text-lg tracking-wider text-white">NATIONAL CART CO.</h1>
+                        <span class="text-[10px] bg-blue-600/40 border border-blue-400/40 px-2 py-0.5 rounded-full font-bold text-blue-200">3D SIM</span>
+                    </div>
+                    <p class="text-[11px] text-blue-300 font-bold tracking-widest uppercase">Faster • Safer • Better</p>
+                </div>
+            </div>
+
+            <div id="mission-card" class="glass-panel px-6 py-3 rounded-2xl text-center border-t-2 border-yellow-400/80 objective-pulse max-w-md mx-auto">
+                <div class="text-[10px] text-blue-300 font-extrabold uppercase tracking-widest flex items-center justify-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-yellow-400 animate-ping"></span>
+                    <span id="mission-step-label">STEP 1: RAW MATERIAL PICKUP</span>
+                </div>
+                <div id="mission-text" class="text-sm md:text-base font-black text-yellow-300 mt-0.5">
+                    Pick up Aluminum Sheets or Tubes (Blue Beacon)
+                </div>
+                <div id="cargo-subtext" class="text-[11px] text-slate-300 font-medium mt-0.5">
+                    Follow the 3D guidance arrow above your forklift
+                </div>
+            </div>
+
+            <div class="flex space-x-3 pointer-auto">
+                <div class="glass-panel px-4 py-2.5 rounded-2xl text-center min-w-[85px] border-l-4 border-blue-400">
+                    <div class="text-[10px] text-blue-300 font-extrabold tracking-wider uppercase">SHIFT LVL</div>
+                    <div id="level-display" class="text-2xl font-black text-white">LVL 1</div>
+                </div>
+                <div class="glass-panel px-4 py-2.5 rounded-2xl text-center min-w-[95px]">
+                    <div class="text-[10px] text-slate-400 font-extrabold tracking-wider uppercase">SHIFT CLOCK</div>
+                    <div id="timer-display" class="text-2xl font-black text-white font-mono">02:30</div>
+                </div>
+                <div class="glass-panel px-4 py-2.5 rounded-2xl text-center min-w-[105px] border-r-4 border-emerald-500">
+                    <div class="text-[10px] text-emerald-300 font-extrabold tracking-wider uppercase">BAYS 1-9</div>
+                    <div id="score-display" class="text-2xl font-black text-emerald-400">0 / 5</div>
+                </div>
+                <div class="glass-panel px-4 py-2.5 rounded-2xl text-center min-w-[105px] border-r-4 border-red-500">
+                    <div class="text-[10px] text-red-300 font-extrabold tracking-wider uppercase">SAFETY STRIKES</div>
+                    <div id="incidents-display" class="text-2xl font-black text-yellow-400">0 / 3</div>
+                </div>
+                <button id="quit-menu-btn" class="glass-panel px-3.5 py-2.5 rounded-2xl text-center hover:bg-red-950/70 border border-red-500/40 transition flex flex-col items-center justify-center cursor-pointer" title="Quit to Main Menu (ESC)">
+                    <span class="text-[10px] text-red-300 font-extrabold tracking-wider uppercase">MENU</span>
+                    <span class="text-xs font-black text-white mt-0.5">ESC ✕</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="flex justify-center items-center my-auto">
+            <div id="toast-alert" class="glass-panel px-6 py-3 rounded-2xl text-center font-extrabold text-sm md:text-base opacity-0 transition-all duration-300 transform translate-y-4 border-2 border-yellow-400/60 shadow-2xl">
+                Loaded Pallet!
+            </div>
+        </div>
+
+        <div class="flex flex-wrap justify-between items-end gap-4 w-full">
+            <div class="flex flex-col gap-2 pointer-auto">
+                <div class="grid grid-cols-3 gap-1.5 w-36 md:hidden mb-1">
+                    <div></div>
+                    <button id="btn-up" class="glass-panel p-3 rounded-xl active:bg-blue-600 text-center font-black">▲</button>
+                    <div></div>
+                    <button id="btn-left" class="glass-panel p-3 rounded-xl active:bg-blue-600 text-center font-black">◀</button>
+                    <button id="btn-down" class="glass-panel p-3 rounded-xl active:bg-blue-600 text-center font-black">▼</button>
+                    <button id="btn-right" class="glass-panel p-3 rounded-xl active:bg-blue-600 text-center font-black">▶</button>
+                </div>
+
+                <div class="glass-panel px-4 py-3 rounded-2xl text-xs text-slate-300 space-y-1.5">
+                    <div class="flex items-center justify-between gap-4 border-b border-slate-700/80 pb-1 mb-1">
+                        <span class="font-extrabold text-blue-400 tracking-wider uppercase text-[11px]">Forklift Controls</span>
+                        <span id="speed-readout" class="font-mono text-[11px] text-emerald-400 font-bold">0.0 MPH</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="bg-slate-800 border border-slate-600 px-2 py-0.5 rounded font-mono text-white font-bold text-[11px]">W / S</span>
+                        <span>Drive / Reverse</span>
+                        <span class="bg-slate-800 border border-slate-600 px-2 py-0.5 rounded font-mono text-white font-bold text-[11px] ml-1">A / D</span>
+                        <span>Steer</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="bg-slate-800 border border-slate-600 px-2 py-0.5 rounded font-mono text-white font-bold text-[11px]">SPACE</span>
+                        <span>Horn</span>
+                        <span class="bg-red-900/80 border border-red-500 px-2 py-0.5 rounded font-mono text-red-200 font-bold text-[11px] ml-1">R</span>
+                        <span class="text-red-300 font-semibold">Rocket</span>
+                        <span class="bg-slate-800 border border-slate-600 px-2 py-0.5 rounded font-mono text-white font-bold text-[11px] ml-1">C</span>
+                        <span>Cam</span>
+                        <button id="rocket-btn" class="bg-red-600/30 hover:bg-red-600/50 border border-red-400/40 text-red-200 px-2 py-0.5 rounded text-[11px] font-bold transition cursor-pointer" title="Fire Rocket (R)">
+                            🚀 Fire
+                        </button>
+                        <button id="music-toggle-btn" class="bg-emerald-600/30 hover:bg-emerald-600/50 border border-emerald-400/40 text-emerald-200 px-2 py-0.5 rounded text-[11px] font-bold transition cursor-pointer" title="Toggle Music (M)">
+                            🎵 Music: ON
+                        </button>
+                        <button id="cam-toggle-btn" class="ml-auto bg-blue-600/30 hover:bg-blue-600/50 border border-blue-400/40 text-blue-200 px-2.5 py-0.5 rounded text-[11px] font-bold transition cursor-pointer">
+                            🎥 Cam: Chase 3D
+                        </button>
+                    </div>
+                    <!-- Horn Cooldown Visual Gauge -->
+                    <div class="pt-1.5 border-t border-slate-700/80 flex items-center gap-2.5">
+                        <span class="text-[10px] font-extrabold uppercase tracking-wider text-yellow-400 shrink-0">📣 HORN (SCARE DOGS):</span>
+                        <div class="w-28 h-2.5 bg-slate-800 rounded-full overflow-hidden border border-slate-600 p-0.5">
+                            <div id="horn-cooldown-bar" class="h-full bg-emerald-400 rounded-full transition-all duration-75" style="width: 100%;"></div>
+                        </div>
+                        <span id="horn-status-text" class="text-[10px] font-mono font-extrabold text-emerald-400 min-w-[48px] text-right">READY</span>
+                    </div>
+                </div>
+            </div>
+
+            <div id="safety-banner" class="glass-panel px-5 py-2.5 rounded-xl text-red-300 font-extrabold text-xs md:text-sm opacity-0 transition-opacity duration-200 border border-red-500/60 bg-red-950/80 flex items-center gap-2">
+                <span class="text-lg">⚠️</span>
+                <span id="safety-text">CAUTION: FLOOR PERSONNEL IN AISLE!</span>
+            </div>
+
+            <div class="glass-panel p-2.5 rounded-2xl pointer-auto flex flex-col items-center">
+                <div class="text-[10px] font-extrabold text-blue-300 uppercase tracking-wider mb-1 w-full flex justify-between px-1">
+                    <span>PLANT RADAR</span>
+                    <span id="dog-radar-status" class="text-slate-400">50' CEILING</span>
+                </div>
+                <canvas id="minimap-canvas" width="170" height="145" class="rounded-lg border border-slate-700 bg-slate-900"></canvas>
+                <div class="flex justify-between w-full text-[9px] text-slate-400 font-semibold mt-1 px-1">
+                    <span class="text-blue-400">● Raw Al.</span>
+                    <span class="text-amber-400">● Fab</span>
+                    <span class="text-emerald-400">● Bays</span>
+                    <span class="text-orange-400">▲ Dogs</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="start-screen" class="hud-layer bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 pointer-auto">
+        <div class="glass-panel max-w-xl w-full p-6 md:p-8 rounded-3xl border border-blue-500/40 text-center space-y-6 relative overflow-hidden">
+            <div class="absolute -top-24 -right-24 w-56 h-56 bg-blue-600/20 rounded-full blur-3xl pointer-events-none"></div>
+            
+            <!-- GitHub Hosted Main Menu Logo -->
+            <div class="flex flex-col items-center">
+                <div class="w-full max-w-md rounded-2xl overflow-hidden border-2 border-blue-400/40 shadow-2xl relative bg-slate-900">
+                    <img 
+                        src="https://raw.githubusercontent.com/jakestl/Warehouse-Rush/main/Warehouse%20Rush%20Logo.jpg" 
+                        alt="National Cart Co. Warehouse Rush Logo" 
+                        class="w-full h-auto block object-cover"
+                        onerror="this.onerror=null; this.src='https://placehold.co/680x310/0f172a/38bdf8?text=National+Cart+Warehouse+Rush';"
+                    />
+                </div>
+            </div>
+
+            <div class="flex flex-col gap-3">
+                <button id="start-btn" class="w-full py-4 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white font-black text-lg rounded-2xl shadow-xl shadow-blue-600/30 transition-all transform hover:scale-[1.01] active:scale-[0.99] cursor-pointer">
+                    START 3D FORKLIFT SHIFT ➔
+                </button>
+                <button id="how-to-play-btn" class="w-full py-3 bg-slate-800/80 hover:bg-slate-700 border border-slate-600 text-blue-300 font-extrabold text-sm rounded-xl transition cursor-pointer">
+                    HOW TO PLAY 📖
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- How to Play Modal (Hidden by default) -->
+    <div id="how-to-play-modal" class="hud-layer bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4 hidden pointer-auto">
+        <div class="glass-panel max-w-xl w-full p-6 md:p-8 rounded-3xl border border-blue-500/40 text-left space-y-4 relative">
+            <div class="flex justify-between items-center border-b border-slate-700 pb-3">
+                <h2 class="text-xl font-black text-white flex items-center gap-2">
+                    <span>📖</span> HOW TO PLAY WAREHOUSE RUSH
+                </h2>
+                <button id="close-modal-btn" class="text-slate-400 hover:text-white font-black text-lg px-2.5 py-1 rounded-lg bg-slate-800 cursor-pointer">✕</button>
+            </div>
+
+            <p class="text-xs text-slate-300 leading-relaxed">
+                Step into our 3D plant floor! Complete your St. Charles production loop before the shift clock runs out.
+            </p>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                <div class="bg-slate-900/90 p-3 rounded-xl border border-blue-500/30">
+                    <div class="font-black text-blue-400 uppercase mb-1">1. Raw Stock</div>
+                    <p class="text-slate-300">Pick up <span class="text-white font-semibold">Aluminum Sheets</span> & <span class="text-white font-semibold">Tubes</span> (Blue Beacon).</p>
+                </div>
+                <div class="bg-slate-900/90 p-3 rounded-xl border border-amber-500/30">
+                    <div class="font-black text-amber-400 uppercase mb-1">2. Fabrication</div>
+                    <p class="text-slate-300">Assemble carts at the <span class="text-white font-semibold">Welding Booth</span> (Amber Beacon).</p>
+                </div>
+                <div class="bg-slate-900/90 p-3 rounded-xl border border-emerald-500/30">
+                    <div class="font-black text-emerald-400 uppercase mb-1">3. Deliver</div>
+                    <p class="text-slate-300">Deliver finished carts to <span class="text-emerald-300 font-bold">Bays 1–9</span> (Emerald Beacon).</p>
+                </div>
+            </div>
+
+            <div class="bg-slate-900/90 p-3.5 rounded-xl border border-slate-800 text-xs space-y-1.5">
+                <div class="font-black text-yellow-300 uppercase">Controls & Safety Rules:</div>
+                <p class="text-slate-300"><span class="text-white font-semibold">W/S</span> Drive/Reverse, <span class="text-white font-semibold">A/D</span> Steer, <span class="text-yellow-300 font-semibold">SPACE</span> Horn (Scares Dogs!), <span class="text-red-400 font-semibold">R</span> Fire Rocket, <span class="text-white font-semibold">C</span> Camera, <span class="text-white font-semibold">ESC</span> Menu.</p>
+                <p class="text-slate-300"><span class="text-orange-400 font-semibold">Level 2+:</span> Stray barking dogs spawn from bay doors and chase you. Honk your horn (<span class="text-yellow-300 font-semibold">SPACE</span>) to make nearby dogs whimper and run away for a few seconds, or fire rockets (<span class="text-red-400 font-semibold">R</span>) to blow them up safely! Avoid 3 safety strikes hitting personnel.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Game Over / Level Complete Modal -->
+    <div id="game-over-screen" class="hud-layer bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4 hidden pointer-auto">
+        <div class="glass-panel max-w-md w-full p-8 rounded-3xl border border-blue-500/40 text-center space-y-6">
+            <div id="go-badge" class="inline-block px-4 py-1 rounded-full text-xs font-black uppercase tracking-widest bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                National Cart Co. Shift Report
+            </div>
+            <h2 id="go-title" class="text-3xl font-black text-white">SHIFT COMPLETE!</h2>
+            <p id="go-message" class="text-slate-300 text-sm leading-relaxed">
+                Outstanding driving! Bays 1–9 are stocked and ready for customer freight out of St. Charles.
+            </p>
+            <div class="grid grid-cols-2 gap-3 bg-slate-900/90 p-4 rounded-2xl border border-slate-800">
+                <div>
+                    <div class="text-[10px] text-slate-400 font-bold uppercase">Carts Delivered</div>
+                    <div id="go-score" class="text-3xl font-black text-emerald-400 mt-1">5 / 5</div>
+                </div>
+                <div>
+                    <div class="text-[10px] text-slate-400 font-bold uppercase">Safety Incidents</div>
+                    <div id="go-incidents" class="text-3xl font-black text-yellow-400 mt-1">0</div>
+                </div>
+            </div>
+            <button id="restart-btn" class="w-full py-4 bg-blue-600 hover:bg-blue-500 text-white font-black text-lg rounded-2xl shadow-lg shadow-blue-600/40 transition-all cursor-pointer">
+                RUN ANOTHER SHIFT ↻
+            </button>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            let gameActive = false;
+            let currentLevel = 1;
+            let modalNextAction = 'restart';
+            let score = 0;
+            const targetScore = 5;
+            let safetyIncidents = 0;
+            const maxSafetyIncidents = 3;
+            let timeLeft = 150;
+            let timerInterval = null;
+            let cameraMode = 'chase';
+
+            const activeRockets = [];
+            const activeExplosions = [];
+            const activeDogs = [];
+            const bayDoorSpawnCoords = [];
+            let totalDogsForLevel = 0;
+            let dogsSpawnedThisLevel = 0;
+            let nextDogSpawnTimer = 0;
+
+            let missionStep = 'pickup_raw';
+            let activeRawIndex = 0;
+            let currentCargoType = null;
+
+            const cartCatalog = [
+                { id: 'lumber_cart', name: "Heavy-Duty Lumber & Drywall Cart", color: 0xea580c },
+                { id: 'picking_cart', name: "Multi-Tier Order Fulfillment Picking Cart", color: 0xdc2626 },
+                { id: 'shopping_cart', name: "National Cart Standard Retail Shopping Cart", color: 0x2563eb }
+            ];
+            let currentCartSpec = cartCatalog[0];
+
+            const AUDIO_URLS = {
+                menuMusic: 'https://raw.githubusercontent.com/jakestl/Warehouse-Rush/main/Menu%20Music.mp3',
+                gameMusic: 'https://raw.githubusercontent.com/jakestl/Warehouse-Rush/main/Gameplay%20Music.mp3',
+                horn: 'https://raw.githubusercontent.com/jakestl/Warehouse-Rush/main/Forklift%20Horn.mp3',
+                crash: 'https://raw.githubusercontent.com/jakestl/Warehouse-Rush/main/Forklift%20Crash.mp3',
+                pickup: 'https://raw.githubusercontent.com/jakestl/Warehouse-Rush/main/Material%20Picked%20Up.mp3',
+                deliver: 'https://raw.githubusercontent.com/jakestl/Warehouse-Rush/main/Cart%20Delivered.mp3',
+                rocketFire: 'https://raw.githubusercontent.com/jakestl/Warehouse-Rush/main/Rocket%20Fire.mp3',
+                rocketExplosion: 'https://raw.githubusercontent.com/jakestl/Warehouse-Rush/main/Rocket%20Explosion.mp3',
+                dogBark: 'https://raw.githubusercontent.com/jakestl/Warehouse-Rush/main/Dog%20Bark.wav',
+                dogWhimper: 'https://raw.githubusercontent.com/jakestl/Warehouse-Rush/main/Dog%20Whimper.mp3',
+                ouch1: 'https://raw.githubusercontent.com/jakestl/Warehouse-Rush/main/Ouch1.mp3',
+                ouch2: 'https://raw.githubusercontent.com/jakestl/Warehouse-Rush/main/Ouch2.mp3'
+            };
+
+            let musicMuted = false;
+            let lastWallHitSoundTime = 0;
+
+            // Horn Cooldown State (5.0 seconds cooldown, scares dogs for 3.0 seconds)
+            const HORN_COOLDOWN_MAX = 5.0;
+            let hornCooldownRemaining = 0;
+
+            const menuMusicAudio = new Audio(AUDIO_URLS.menuMusic);
+            menuMusicAudio.loop = true;
+            menuMusicAudio.volume = 0.55;
+
+            const gameMusicAudio = new Audio(AUDIO_URLS.gameMusic);
+            gameMusicAudio.loop = true;
+            gameMusicAudio.volume = 0.55;
+
+            // Preload sound effects pool
+            const sfxCache = {};
+            Object.keys(AUDIO_URLS).forEach(key => {
+                if (key !== 'menuMusic' && key !== 'gameMusic') {
+                    const a = new Audio(AUDIO_URLS[key]);
+                    a.preload = 'auto';
+                    sfxCache[key] = a;
+                }
+            });
+
+            function playSfx(key, volume = 0.85) {
+                try {
+                    const base = sfxCache[key];
+                    const sound = base ? base.cloneNode() : new Audio(AUDIO_URLS[key]);
+                    sound.volume = Math.min(1.0, Math.max(0, volume));
+                    sound.play().catch(() => {});
+                } catch (e) {}
+            }
+
+            function startMenuMusic() {
+                gameMusicAudio.pause();
+                gameMusicAudio.currentTime = 0;
+                if (!musicMuted) {
+                    menuMusicAudio.play().catch(() => {});
+                }
+            }
+
+            function startBackgroundMusic() {
+                menuMusicAudio.pause();
+                menuMusicAudio.currentTime = 0;
+                if (!musicMuted) {
+                    gameMusicAudio.currentTime = 0;
+                    gameMusicAudio.play().catch(() => {});
+                }
+            }
+
+            function stopBackgroundMusic() {
+                gameMusicAudio.pause();
+            }
+
+            function toggleMusicMute() {
+                musicMuted = !musicMuted;
+                const btn = document.getElementById('music-toggle-btn');
+                if (btn) btn.innerText = musicMuted ? '🔇 Music: OFF' : '🎵 Music: ON';
+                if (musicMuted) {
+                    menuMusicAudio.pause();
+                    gameMusicAudio.pause();
+                } else {
+                    if (gameActive) gameMusicAudio.play().catch(() => {});
+                    else menuMusicAudio.play().catch(() => {});
+                }
+            }
+
+            // Unlock menu music on first user click/key interaction if still on menu
+            const unlockMenuAudioOnce = () => {
+                if (!gameActive && !musicMuted && menuMusicAudio.paused) {
+                    menuMusicAudio.play().catch(() => {});
+                }
+            };
+            window.addEventListener('pointerdown', unlockMenuAudioOnce, { once: true });
+            window.addEventListener('keydown', unlockMenuAudioOnce, { once: true });
+
+            function playDogBarkSound() {
+                playSfx('dogBark', 0.85);
+            }
+
+            function playDogWhimperSound() {
+                playSfx('dogWhimper', 0.95);
+            }
+
+            function playCollisionSound(impactSpeed = 0.4) {
+                const now = performance.now() / 1000;
+                if (now - lastWallHitSoundTime < 0.35) return;
+                lastWallHitSoundTime = now;
+                const intensity = Math.min(1.0, Math.max(0.4, Math.abs(impactSpeed) * 1.6));
+                playSfx('crash', intensity);
+            }
+
+            function updateHornCooldownHUD() {
+                const bar = document.getElementById('horn-cooldown-bar');
+                const txt = document.getElementById('horn-status-text');
+                if (!bar || !txt) return;
+
+                if (hornCooldownRemaining <= 0) {
+                    bar.style.width = '100%';
+                    bar.className = 'h-full bg-emerald-400 rounded-full transition-all duration-75';
+                    txt.innerText = 'READY';
+                    txt.className = 'text-[10px] font-mono font-extrabold text-emerald-400 min-w-[48px] text-right';
+                } else {
+                    const pct = Math.max(0, Math.min(100, ((HORN_COOLDOWN_MAX - hornCooldownRemaining) / HORN_COOLDOWN_MAX) * 100));
+                    bar.style.width = `${pct}%`;
+                    bar.className = 'h-full bg-amber-400 rounded-full transition-all duration-75';
+                    txt.innerText = `${hornCooldownRemaining.toFixed(1)}s`;
+                    txt.className = 'text-[10px] font-mono font-extrabold text-amber-400 min-w-[48px] text-right';
+                }
+            }
+
+            function triggerForkliftHorn() {
+                if (!gameActive) return;
+                if (hornCooldownRemaining > 0) {
+                    showToast(`⏳ Horn recharging! (${hornCooldownRemaining.toFixed(1)}s left)`, 'border-amber-400');
+                    return;
+                }
+
+                hornCooldownRemaining = HORN_COOLDOWN_MAX;
+                updateHornCooldownHUD();
+                playSfx('horn', 1.0);
+
+                // Scare all dogs within 48 units for 3.0 seconds (~180 frames at 60fps)
+                let scaredCount = 0;
+                activeDogs.forEach(dog => {
+                    const dist = Math.hypot(dog.mesh.position.x - forkliftState.x, dog.mesh.position.z - forkliftState.z);
+                    if (dist < 48) {
+                        dog.fleeTimer = 180; // 3 seconds at 60fps
+                        scaredCount++;
+                    }
+                });
+
+                if (scaredCount > 0) {
+                    playDogWhimperSound();
+                    showToast(`📣 HONK! Scared ${scaredCount} dog${scaredCount > 1 ? 's' : ''} away!`, 'border-yellow-400');
+                }
+            }
+
+            function playManReactionVoice() {
+                const useSecond = Math.random() < 0.5;
+                playSfx(useSecond ? 'ouch2' : 'ouch1', 1.0);
+                return useSecond ? "AAAHHH!" : "OUCH!";
+            }
+
+            function playExplosionSound() {
+                playSfx('rocketExplosion', 0.95);
+            }
+
+            function playRocketLaunchSound() {
+                playSfx('rocketFire', 0.9);
+            }
+
+            function playSound(type) {
+                if (type === 'pickup') {
+                    playSfx('pickup', 0.9);
+                } else if (type === 'deliver') {
+                    playSfx('deliver', 0.95);
+                }
+            }
+
+            const container = document.getElementById('webgl-container');
+            const scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x111827);
+            scene.fog = new THREE.FogExp2(0x111827, 0.0028);
+
+            const camera = new THREE.PerspectiveCamera(58, window.innerWidth / window.innerHeight, 0.5, 600);
+            camera.position.set(0, 12, 28);
+
+            const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            container.appendChild(renderer.domElement);
+
+            const ambientLight = new THREE.AmbientLight(0xdbeafe, 0.65);
+            scene.add(ambientLight);
+
+            const hemiLight = new THREE.HemisphereLight(0xf8fafc, 0x334155, 0.55);
+            hemiLight.position.set(0, 50, 0);
+            scene.add(hemiLight);
+
+            const mainSunLight = new THREE.DirectionalLight(0xffffff, 0.85);
+            mainSunLight.position.set(45, 75, 55);
+            mainSunLight.castShadow = true;
+            mainSunLight.shadow.mapSize.width = 2048;
+            mainSunLight.shadow.mapSize.height = 2048;
+            mainSunLight.shadow.camera.near = 10;
+            mainSunLight.shadow.camera.far = 260;
+            const d = 135;
+            mainSunLight.shadow.camera.left = -d;
+            mainSunLight.shadow.camera.right = d;
+            mainSunLight.shadow.camera.top = d;
+            mainSunLight.shadow.camera.bottom = -d;
+            scene.add(mainSunLight);
+
+            function createConcreteTexture() {
+                const c = document.createElement('canvas');
+                c.width = 512; c.height = 512;
+                const ctx = c.getContext('2d');
+                ctx.fillStyle = '#475569';
+                ctx.fillRect(0, 0, 512, 512);
+                for (let i = 0; i < 4000; i++) {
+                    ctx.fillStyle = Math.random() > 0.5 ? 'rgba(255,255,255,0.03)' : 'rgba(15,23,42,0.04)';
+                    ctx.fillRect(Math.random() * 512, Math.random() * 512, 3, 3);
+                }
+                ctx.strokeStyle = 'rgba(30, 41, 59, 0.45)';
+                ctx.lineWidth = 3;
+                ctx.strokeRect(0, 0, 512, 512);
+                ctx.beginPath();
+                ctx.moveTo(256, 0); ctx.lineTo(256, 512);
+                ctx.moveTo(0, 256); ctx.lineTo(512, 256);
+                ctx.stroke();
+                const tex = new THREE.CanvasTexture(c);
+                tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.RepeatWrapping;
+                tex.repeat.set(16, 16);
+                return tex;
+            }
+
+            function createNCCRoundLogoTexture() {
+                const c = document.createElement('canvas');
+                c.width = 512; c.height = 512;
+                const ctx = c.getContext('2d');
+                ctx.fillStyle = '#0b4f9c';
+                ctx.beginPath(); ctx.arc(256, 256, 240, 0, Math.PI * 2); ctx.fill();
+                ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 14;
+                ctx.beginPath(); ctx.arc(256, 256, 215, 0, Math.PI * 2); ctx.stroke();
+                ctx.fillStyle = '#ffffff'; ctx.font = '900 155px Inter, sans-serif';
+                ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                ctx.fillText('nc', 256, 245);
+                ctx.font = '800 30px Inter, sans-serif';
+                ctx.fillText('FASTER • SAFER • BETTER', 256, 380);
+                ctx.font = '700 24px Inter, sans-serif'; ctx.fillStyle = '#93c5fd';
+                ctx.fillText('NATIONAL CART CO.', 256, 125);
+                return new THREE.CanvasTexture(c);
+            }
+
+            function createBannerTexture(title, subtitle, bgHex, textHex) {
+                const c = document.createElement('canvas');
+                c.width = 1024; c.height = 256;
+                const ctx = c.getContext('2d');
+                ctx.fillStyle = bgHex; ctx.fillRect(0, 0, 1024, 256);
+                ctx.strokeStyle = textHex; ctx.lineWidth = 10; ctx.strokeRect(12, 12, 1000, 232);
+                ctx.fillStyle = textHex; ctx.font = '900 64px Inter, sans-serif';
+                ctx.textAlign = 'center'; ctx.fillText(title, 512, 115);
+                ctx.font = '700 38px Inter, sans-serif'; ctx.fillText(subtitle, 512, 185);
+                return new THREE.CanvasTexture(c);
+            }
+
+            const WAREHOUSE_W = 240;
+            const WAREHOUSE_D = 220;
+            const CEILING_H = 42;
+            const colliders = [];
+
+            function addBoxCollider(x, z, w, d, label) {
+                colliders.push({ minX: x - w / 2, maxX: x + w / 2, minZ: z - d / 2, maxZ: z + d / 2, label: label || 'obstacle' });
+            }
+
+            const floorMesh = new THREE.Mesh(new THREE.PlaneGeometry(WAREHOUSE_W, WAREHOUSE_D), new THREE.MeshStandardMaterial({ map: createConcreteTexture(), roughness: 0.45, metalness: 0.15 }));
+            floorMesh.rotation.x = -Math.PI / 2;
+            floorMesh.receiveShadow = true;
+            scene.add(floorMesh);
+
+            function addFloorStripe(x, z, w, d, colorHex = 0xfacc15) {
+                const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d), new THREE.MeshBasicMaterial({ color: colorHex }));
+                m.rotation.x = -Math.PI / 2; m.position.set(x, 0.04, z);
+                scene.add(m);
+            }
+            addFloorStripe(-48, 0, 0.5, 190);
+            addFloorStripe(0, 0, 0.5, 190);
+            addFloorStripe(46, 0, 0.5, 190);
+            addFloorStripe(0, -68, 210, 0.5);
+            addFloorStripe(0, 65, 210, 0.5);
+
+            const wallMat = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, roughness: 0.7, metalness: 0.2 });
+            const darkWallMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.8 });
+
+            const northWall = new THREE.Mesh(new THREE.BoxGeometry(WAREHOUSE_W, CEILING_H, 2), wallMat);
+            northWall.position.set(0, CEILING_H / 2, -WAREHOUSE_D / 2); scene.add(northWall);
+            const southWall = new THREE.Mesh(new THREE.BoxGeometry(WAREHOUSE_W, CEILING_H, 2), wallMat);
+            southWall.position.set(0, CEILING_H / 2, WAREHOUSE_D / 2); scene.add(southWall);
+            const westWall = new THREE.Mesh(new THREE.BoxGeometry(2, CEILING_H, WAREHOUSE_D), wallMat);
+            westWall.position.set(-WAREHOUSE_W / 2, CEILING_H / 2, 0); scene.add(westWall);
+            const eastWall = new THREE.Mesh(new THREE.BoxGeometry(2, CEILING_H, WAREHOUSE_D), wallMat);
+            eastWall.position.set(WAREHOUSE_W / 2, CEILING_H / 2, 0); scene.add(eastWall);
+
+            const trussMat = new THREE.MeshStandardMaterial({ color: 0x27272a, metalness: 0.6, roughness: 0.4 });
+            const ledMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+            for (let z = -90; z <= 90; z += 30) {
+                const beam = new THREE.Mesh(new THREE.BoxGeometry(WAREHOUSE_W, 1.4, 0.9), trussMat);
+                beam.position.set(0, CEILING_H - 1.5, z); scene.add(beam);
+                for (let x = -90; x <= 90; x += 36) {
+                    const fixture = new THREE.Mesh(new THREE.BoxGeometry(4.2, 0.35, 1.6), ledMat);
+                    fixture.position.set(x, CEILING_H - 2.3, z); scene.add(fixture);
+                }
+            }
+
+            const pillarPositions = [[-46, -45], [2, -45], [48, -45], [-46, 15], [2, 15], [48, 15], [-46, 65], [2, 65], [48, 65]];
+            const bollardYellowMat = new THREE.MeshStandardMaterial({ color: 0xfacc15, roughness: 0.3 });
+            const steelColumnMat = new THREE.MeshStandardMaterial({ color: 0x451a03, metalness: 0.5, roughness: 0.5 });
+            pillarPositions.forEach(([px, pz]) => {
+                const col = new THREE.Mesh(new THREE.CylinderGeometry(0.65, 0.65, CEILING_H, 12), steelColumnMat);
+                col.position.set(px, CEILING_H / 2, pz); col.castShadow = true; scene.add(col);
+                const yellowBase = new THREE.Mesh(new THREE.CylinderGeometry(0.85, 0.85, 7.5, 12), bollardYellowMat);
+                yellowBase.position.set(px, 3.75, pz); scene.add(yellowBase);
+                addBoxCollider(px, pz, 2.0, 2.0, 'Steel Column');
+            });
+
+            const officeGroup = new THREE.Group();
+            const officeW = 34; const officeD = 68;
+            const officeX = -WAREHOUSE_W / 2 + officeW / 2 + 1; const officeZ = 8;
+            const officeMain = new THREE.Mesh(new THREE.BoxGeometry(officeW, CEILING_H, officeD), new THREE.MeshStandardMaterial({ color: 0xf1f5f9, roughness: 0.6 }));
+            officeMain.position.set(officeX, CEILING_H / 2, officeZ); officeMain.castShadow = true; officeMain.receiveShadow = true;
+            officeGroup.add(officeMain);
+
+            const wainscot = new THREE.Mesh(new THREE.BoxGeometry(officeW + 0.2, 5.5, officeD + 0.2), darkWallMat);
+            wainscot.position.set(officeX, 2.75, officeZ); officeGroup.add(wainscot);
+
+            const windowFrameMat = new THREE.MeshStandardMaterial({ color: 0x1e293b });
+            const windowGlassMat = new THREE.MeshStandardMaterial({ color: 0x93c5fd, emissive: 0x1d4ed8, emissiveIntensity: 0.35, roughness: 0.1, metalness: 0.8 });
+            for (let wz = officeZ - 22; wz <= officeZ + 22; wz += 14) {
+                const frame = new THREE.Mesh(new THREE.BoxGeometry(0.5, 5.2, 8.5), windowFrameMat);
+                frame.position.set(officeX + officeW / 2 + 0.05, 22, wz); officeGroup.add(frame);
+                const glass = new THREE.Mesh(new THREE.BoxGeometry(0.6, 4.4, 7.7), windowGlassMat);
+                glass.position.set(officeX + officeW / 2 + 0.1, 22, wz); officeGroup.add(glass);
+            }
+
+            const logoPlaqueMat = new THREE.MeshBasicMaterial({ map: createNCCRoundLogoTexture(), transparent: true, side: THREE.DoubleSide });
+            const logoPlaque = new THREE.Mesh(new THREE.PlaneGeometry(14, 7.5), logoPlaqueMat);
+            logoPlaque.rotation.y = Math.PI / 2;
+            logoPlaque.position.set(officeX + officeW / 2 + 0.18, 13.5, officeZ - 6);
+            officeGroup.add(logoPlaque);
+
+            const sbfTextureLoader = new THREE.TextureLoader();
+            sbfTextureLoader.setCrossOrigin('anonymous');
+            sbfTextureLoader.load(
+                'https://raw.githubusercontent.com/jakestl/Warehouse-Rush/main/SBF_LOGO.png',
+                (tex) => {
+                    logoPlaqueMat.map = tex;
+                    logoPlaqueMat.needsUpdate = true;
+                    if (tex.image && tex.image.width && tex.image.height) {
+                        const aspect = tex.image.width / tex.image.height;
+                        const signHeight = 7.5;
+                        logoPlaque.geometry.dispose();
+                        logoPlaque.geometry = new THREE.PlaneGeometry(signHeight * aspect, signHeight);
+                    }
+                }
+            );
+
+            scene.add(officeGroup);
+            addBoxCollider(officeX, officeZ, officeW, officeD, 'Front Offices');
+
+            function createBayDoorsRow(startX, count, zPos, labelTitle, labelSub, bannerColor) {
+                const group = new THREE.Group();
+                const spacing = 10;
+                for (let i = 0; i < count; i++) {
+                    const bx = startX + i * spacing;
+                    const doorFrame = new THREE.Mesh(new THREE.BoxGeometry(7.2, 13, 0.8), new THREE.MeshStandardMaterial({ color: 0x334155 }));
+                    doorFrame.position.set(bx, 6.5, zPos); group.add(doorFrame);
+                    const rollDoor = new THREE.Mesh(new THREE.BoxGeometry(6.4, 12, 1.0), new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.5 }));
+                    rollDoor.position.set(bx, 6.0, zPos); group.add(rollDoor);
+
+                    bayDoorSpawnCoords.push({
+                        x: bx,
+                        z: zPos > 0 ? zPos - 5.5 : zPos + 5.5
+                    });
+                }
+                const midX = startX + ((count - 1) * spacing) / 2;
+                const signMesh = new THREE.Mesh(new THREE.PlaneGeometry(38, 8.5), new THREE.MeshBasicMaterial({ map: createBannerTexture(labelTitle, labelSub, bannerColor, '#ffffff'), side: THREE.DoubleSide }));
+                signMesh.position.set(midX, 21, zPos > 0 ? zPos - 1.2 : zPos + 1.2);
+                if (zPos > 0) signMesh.rotation.y = Math.PI;
+                group.add(signMesh);
+                scene.add(group);
+            }
+            createBayDoorsRow(-95, 7, -WAREHOUSE_D / 2 + 1.2, 'BAYS 1 - 9', 'FINISHED GOODS & CART SHIPPING', '#0b4f9c');
+            createBayDoorsRow(-15, 4, -WAREHOUSE_D / 2 + 1.2, 'BAYS 10 - 13', 'CENTRAL RECEIVING', '#1e293b');
+            createBayDoorsRow(45, 6, -WAREHOUSE_D / 2 + 1.2, 'BAYS 14 - 22', 'EAST FREIGHT DOCKS', '#1e293b');
+            createBayDoorsRow(-85, 4, WAREHOUSE_D / 2 - 1.2, 'BAYS 38 - 40', 'SOUTH WEST DOCKS', '#1e293b');
+            createBayDoorsRow(15, 4, WAREHOUSE_D / 2 - 1.2, 'BAYS 32 - 37', 'SOUTH CENTRAL DOCKS', '#1e293b');
+            createBayDoorsRow(65, 4, WAREHOUSE_D / 2 - 1.2, 'BAYS 23 - 31', 'RAW STEEL INTAKE', '#1e293b');
+
+            const greenUprightMat = new THREE.MeshStandardMaterial({ color: 0x15803d, roughness: 0.5 });
+            const orangeBeamMat = new THREE.MeshStandardMaterial({ color: 0xea580c, roughness: 0.4 });
+            const aluminumMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.85, roughness: 0.2 });
+            const cardboardMat = new THREE.MeshStandardMaterial({ color: 0xb45309, roughness: 0.85 });
+            const woodPalletMat = new THREE.MeshStandardMaterial({ color: 0x92400e, roughness: 0.9 });
+
+            function createIndustrialRack(x, z, lengthZ, tiers = 4) {
+                const rackGroup = new THREE.Group();
+                const widthX = 7.5; const uprightH = tiers * 5.2;
+                const numBays = Math.max(2, Math.floor(lengthZ / 10));
+                const stepZ = lengthZ / numBays;
+
+                for (let i = 0; i <= numBays; i++) {
+                    const curZ = -lengthZ / 2 + i * stepZ;
+                    const postL = new THREE.Mesh(new THREE.BoxGeometry(0.45, uprightH, 0.45), greenUprightMat);
+                    postL.position.set(-widthX / 2, uprightH / 2, curZ); postL.castShadow = true; rackGroup.add(postL);
+                    const postR = new THREE.Mesh(new THREE.BoxGeometry(0.45, uprightH, 0.45), greenUprightMat);
+                    postR.position.set(widthX / 2, uprightH / 2, curZ); postR.castShadow = true; rackGroup.add(postR);
+                }
+
+                for (let t = 1; t <= tiers; t++) {
+                    const y = t * 4.8;
+                    const beamL = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.45, lengthZ), orangeBeamMat);
+                    beamL.position.set(-widthX / 2, y, 0); rackGroup.add(beamL);
+                    const beamR = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.45, lengthZ), orangeBeamMat);
+                    beamR.position.set(widthX / 2, y, 0); rackGroup.add(beamR);
+
+                    for (let i = 0; i < numBays; i++) {
+                        const slotZ = -lengthZ / 2 + (i + 0.5) * stepZ;
+                        if ((i + t) % 2 === 0) {
+                            const alBundle = new THREE.Mesh(new THREE.BoxGeometry(widthX - 1.2, 1.8, stepZ - 1.8), aluminumMat);
+                            alBundle.position.set(0, y + 1.15, slotZ); rackGroup.add(alBundle);
+                        } else {
+                            const box = new THREE.Mesh(new THREE.BoxGeometry(widthX - 1.6, 2.5, stepZ - 2.4), cardboardMat);
+                            box.position.set(0, y + 1.5, slotZ); rackGroup.add(box);
+                        }
+                    }
+                }
+                rackGroup.position.set(x, 0, z); scene.add(rackGroup);
+                addBoxCollider(x, z, widthX + 0.6, lengthZ + 0.6, 'Storage Rack');
+            }
+
+            createIndustrialRack(25, -42, 46, 4); createIndustrialRack(42, -42, 46, 4);
+            createIndustrialRack(68, -42, 46, 4); createIndustrialRack(85, -42, 46, 4);
+            createIndustrialRack(25, 35, 42, 4);  createIndustrialRack(42, 35, 42, 4);
+            createIndustrialRack(68, 35, 42, 4);  createIndustrialRack(85, 35, 42, 4);
+            createIndustrialRack(-65, -42, 42, 4); createIndustrialRack(-30, 38, 44, 4);
+
+            const robotArms = [];
+            function createWeldingRobotCell(x, z) {
+                const cellGroup = new THREE.Group();
+                const pedestalMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.6, roughness: 0.4 });
+                const robotYellowMat = new THREE.MeshStandardMaterial({ color: 0xfacc15, metalness: 0.4, roughness: 0.3 });
+                const tableMat = new THREE.MeshStandardMaterial({ color: 0x475569, metalness: 0.7, roughness: 0.3 });
+
+                const jigTable = new THREE.Mesh(new THREE.BoxGeometry(5.5, 2.2, 3.8), tableMat);
+                jigTable.position.set(0, 1.1, 2.6);
+                jigTable.castShadow = true;
+                cellGroup.add(jigTable);
+
+                const workPiece = new THREE.Mesh(new THREE.BoxGeometry(4.0, 0.9, 2.4), aluminumMat);
+                workPiece.position.set(0, 2.65, 2.6);
+                cellGroup.add(workPiece);
+
+                const base = new THREE.Mesh(new THREE.CylinderGeometry(1.3, 1.5, 1.6, 16), pedestalMat);
+                base.position.set(0, 0.8, -1.5);
+                base.castShadow = true;
+                cellGroup.add(base);
+
+                const turret = new THREE.Group();
+                turret.position.set(0, 1.6, -1.5);
+                const shoulder = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1.8, 1.6), robotYellowMat);
+                shoulder.position.y = 0.9;
+                turret.add(shoulder);
+
+                const lowerArm = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.45, 4.2, 12), robotYellowMat);
+                lowerArm.position.set(0, 3.2, 0.8);
+                lowerArm.rotation.x = 0.45;
+                turret.add(lowerArm);
+
+                const upperArm = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.65, 3.8), robotYellowMat);
+                upperArm.position.set(0, 4.8, 2.6);
+                upperArm.rotation.x = 0.35;
+                turret.add(upperArm);
+
+                const torch = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.08, 1.1, 8), pedestalMat);
+                torch.position.set(0, 4.0, 4.2);
+                torch.rotation.x = Math.PI / 4;
+                turret.add(torch);
+
+                const sparkGlow = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.32, 8, 8),
+                    new THREE.MeshBasicMaterial({ color: 0x60a5fa })
+                );
+                sparkGlow.position.set(0, 3.5, 4.5);
+                turret.add(sparkGlow);
+
+                cellGroup.add(turret);
+
+                [[-4.2, -3.5], [4.2, -3.5], [-4.2, 5.0], [4.2, 5.0]].forEach(([bx, bz]) => {
+                    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 3.6, 8), bollardYellowMat);
+                    post.position.set(bx, 1.8, bz);
+                    cellGroup.add(post);
+                });
+
+                cellGroup.position.set(x, 0, z);
+                scene.add(cellGroup);
+                addBoxCollider(x, z + 0.6, 4.4, 4.6, 'Welding Robot');
+                robotArms.push({ turret, sparkGlow, phase: Math.random() * 10 });
+            }
+
+            function createTubeBenderMachine(x, z) {
+                const machineGroup = new THREE.Group();
+                const machineBlueMat = new THREE.MeshStandardMaterial({ color: 0x0b4f9c, roughness: 0.4, metalness: 0.3 });
+                const steelMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.8, roughness: 0.2 });
+                const darkSteel = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.6, roughness: 0.4 });
+
+                const mainBed = new THREE.Mesh(new THREE.BoxGeometry(13.5, 2.2, 3.2), machineBlueMat);
+                mainBed.position.set(0, 1.1, 0);
+                mainBed.castShadow = true;
+                machineGroup.add(mainBed);
+
+                const bendHead = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.5, 2.9, 20), darkSteel);
+                bendHead.position.set(-5.8, 2.1, 0);
+                machineGroup.add(bendHead);
+
+                const dieWheel = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.1, 0.6, 20), steelMat);
+                dieWheel.position.set(-5.8, 3.6, 0);
+                machineGroup.add(dieWheel);
+
+                const longTube = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 11.5, 12), aluminumMat);
+                longTube.rotation.z = Math.PI / 2;
+                longTube.position.set(0, 3.5, 0);
+                machineGroup.add(longTube);
+
+                const bentTubeEnd = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 4.2, 12), aluminumMat);
+                bentTubeEnd.rotation.x = Math.PI / 2;
+                bentTubeEnd.position.set(-5.8, 3.5, 2.1);
+                machineGroup.add(bentTubeEnd);
+
+                const consoleStand = new THREE.Mesh(new THREE.BoxGeometry(1.4, 3.8, 1.2), darkSteel);
+                consoleStand.position.set(-2.5, 1.9, 2.8);
+                machineGroup.add(consoleStand);
+
+                const screen = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.9, 0.2), new THREE.MeshBasicMaterial({ color: 0x38bdf8 }));
+                screen.position.set(-2.5, 3.2, 3.4);
+                machineGroup.add(screen);
+
+                machineGroup.position.set(x, 0, z);
+                scene.add(machineGroup);
+                addBoxCollider(x, z, 9.8, 2.2, 'CNC Tube Bender');
+            }
+
+            createWeldingRobotCell(-18, -10);
+            createWeldingRobotCell(-4, -10);
+            createTubeBenderMachine(-11, 10);
+
+            function buildCargoMesh(type) {
+                const group = new THREE.Group();
+                if (type === 'sheets') {
+                    const pal = new THREE.Mesh(new THREE.BoxGeometry(4.2, 0.45, 4.2), woodPalletMat);
+                    pal.position.y = 0.22; group.add(pal);
+                    const stack = new THREE.Mesh(new THREE.BoxGeometry(3.9, 1.8, 3.9), aluminumMat);
+                    stack.position.y = 1.35; stack.castShadow = true; group.add(stack);
+                } else if (type === 'tubes') {
+                    const pal = new THREE.Mesh(new THREE.BoxGeometry(4.2, 0.45, 4.4), woodPalletMat);
+                    pal.position.y = 0.22; group.add(pal);
+                    for (let row = 0; row < 3; row++) {
+                        for (let col = -1.3; col <= 1.3; col += 0.65) {
+                            const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.26, 4.8, 12), aluminumMat);
+                            pipe.rotation.z = Math.PI / 2;
+                            pipe.position.set(0, 0.75 + row * 0.52, col);
+                            group.add(pipe);
+                        }
+                    }
+                } else if (type === 'lumber_cart') {
+                    const orangeMat = new THREE.MeshStandardMaterial({ color: 0xf97316, roughness: 0.3 });
+                    const deck = new THREE.Mesh(new THREE.BoxGeometry(4.4, 0.35, 2.8), orangeMat);
+                    deck.position.y = 0.8; group.add(deck);
+                    [-1.6, 0, 1.6].forEach(lx => {
+                        const barL = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 3.6, 10), orangeMat);
+                        barL.position.set(lx, 2.6, -1.2); group.add(barL);
+                        const barR = barL.clone(); barR.position.z = 1.2; group.add(barR);
+                    });
+                } else if (type === 'picking_cart') {
+                    const frameMat = new THREE.MeshStandardMaterial({ color: 0x64748b, metalness: 0.7 });
+                    const toteMat = new THREE.MeshStandardMaterial({ color: 0xdc2626 });
+                    [0.8, 2.2, 3.6].forEach(sy => {
+                        const shelf = new THREE.Mesh(new THREE.BoxGeometry(4.2, 0.18, 2.6), frameMat);
+                        shelf.position.y = sy; group.add(shelf);
+                        if (sy < 3.5) {
+                            const t1 = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.95, 2.1), toteMat);
+                            t1.position.set(-1.0, sy + 0.55, 0); group.add(t1);
+                            const t2 = t1.clone(); t2.position.x = 1.0; group.add(t2);
+                        }
+                    });
+                } else {
+                    const wireMat = new THREE.MeshStandardMaterial({ color: 0xd1d5db, metalness: 0.85, roughness: 0.2 });
+                    const basket = new THREE.Mesh(new THREE.BoxGeometry(3.4, 1.9, 2.2), wireMat);
+                    basket.position.set(0.2, 2.2, 0); group.add(basket);
+                    const baseFrame = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.2, 2.2), wireMat);
+                    baseFrame.position.set(0, 0.7, 0); group.add(baseFrame);
+                }
+                return group;
+            }
+
+            function populateFinishedGoodsBays() {
+                const cartTypes = ['lumber_cart', 'picking_cart', 'shopping_cart'];
+                for (let row = 0; row < 3; row++) {
+                    for (let col = 0; col < 5; col++) {
+                        const cType = cartTypes[(row + col) % cartTypes.length];
+                        const cartMesh = buildCargoMesh(cType);
+                        cartMesh.position.set(-95 + col * 8.5, 0, -96 + row * 6.5);
+                        scene.add(cartMesh);
+                    }
+                }
+            }
+            populateFinishedGoodsBays();
+
+            const rawZones = [
+                { x: 56, z: -12, type: 'sheets', name: 'Raw Aluminum Sheets' },
+                { x: 56, z: 58,  type: 'tubes',  name: 'Raw Aluminum Tubes' },
+                { x: -24, z: 68, type: 'sheets', name: 'Aluminum Sheet Stock' }
+            ];
+            const fabricationZone = { x: -16, z: -28, name: 'Cart Welding & Assembly' };
+            const deliveryBayZone = { x: -65, z: -84, name: 'Bays 1–9 Staging' };
+
+            rawZones.forEach(rz => {
+                const prop = buildCargoMesh(rz.type);
+                prop.position.set(rz.x, 0, rz.z); scene.add(prop);
+            });
+
+            const beaconGroup = new THREE.Group();
+            const ringGeo = new THREE.TorusGeometry(4.8, 0.28, 16, 48);
+            const ringMat = new THREE.MeshBasicMaterial({ color: 0x3b82f6 });
+            const beaconRing = new THREE.Mesh(ringGeo, ringMat);
+            beaconRing.rotation.x = Math.PI / 2; beaconRing.position.y = 0.35; beaconGroup.add(beaconRing);
+            const cylinderGlow = new THREE.Mesh(new THREE.CylinderGeometry(4.6, 4.6, 12, 32, 1, true), new THREE.MeshBasicMaterial({ color: 0x3b82f6, transparent: true, opacity: 0.18, side: THREE.DoubleSide }));
+            cylinderGlow.position.y = 6; beaconGroup.add(cylinderGlow);
+            scene.add(beaconGroup);
+
+            function getActiveTargetCoords() {
+                if (missionStep === 'pickup_raw') return rawZones[activeRawIndex];
+                if (missionStep === 'fabricate') return fabricationZone;
+                return deliveryBayZone;
+            }
+
+            function syncBeaconVisuals() {
+                const target = getActiveTargetCoords();
+                beaconGroup.position.set(target.x, 0, target.z);
+                let hex = 0x3b82f6;
+                if (missionStep === 'fabricate') hex = 0xf59e0b;
+                if (missionStep === 'deliver_bays') hex = 0x10b981;
+                ringMat.color.setHex(hex);
+                cylinderGlow.material.color.setHex(hex);
+            }
+            syncBeaconVisuals();
+
+            const forkliftGroup = new THREE.Group();
+            const forkliftState = { x: 0, z: 75, angle: Math.PI, speed: 0, maxSpeed: 0.44, accel: 0.014, friction: 0.92, turnRate: 0.026 };
+
+            const bodyMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.3, metalness: 0.2 });
+            const darkMetalMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.5, metalness: 0.5 });
+            const steelForkMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.35, metalness: 0.75 });
+
+            const mainChassis = new THREE.Mesh(new THREE.BoxGeometry(3.4, 1.8, 4.8), bodyMat);
+            mainChassis.position.set(0, 1.35, -0.2);
+            mainChassis.castShadow = true;
+            forkliftGroup.add(mainChassis);
+
+            const counterweight = new THREE.Mesh(new THREE.CylinderGeometry(1.72, 1.72, 2.1, 16), darkMetalMat);
+            counterweight.position.set(0, 1.5, -2.0);
+            counterweight.castShadow = true;
+            forkliftGroup.add(counterweight);
+
+            const seatBase = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.45, 1.5), darkMetalMat);
+            seatBase.position.set(0, 2.5, -0.5);
+            forkliftGroup.add(seatBase);
+
+            const seatBack = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1.4, 0.35), darkMetalMat);
+            seatBack.position.set(0, 3.3, -1.1);
+            forkliftGroup.add(seatBack);
+
+            const driverBodyGroup = new THREE.Group();
+            const blueGreyShirtMat = new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.55 });
+            const driverSkinMat = new THREE.MeshStandardMaterial({ color: 0xfdba74, roughness: 0.5 });
+            const driverPantsMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.7 });
+            const messyHairMat = new THREE.MeshStandardMaterial({ color: 0x4a2c11, roughness: 0.85 });
+
+            const driverTorso = new THREE.Mesh(new THREE.BoxGeometry(1.15, 1.35, 0.68), blueGreyShirtMat);
+            driverTorso.position.set(0, 3.38, -0.52);
+            driverTorso.castShadow = true;
+            driverBodyGroup.add(driverTorso);
+
+            [-0.3, 0.3].forEach(lx => {
+                const thigh = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.38, 0.95), driverPantsMat);
+                thigh.position.set(lx, 2.82, -0.05);
+                driverBodyGroup.add(thigh);
+
+                const calf = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.85, 0.38), driverPantsMat);
+                calf.position.set(lx, 2.35, 0.42);
+                calf.rotation.x = -0.25;
+                driverBodyGroup.add(calf);
+
+                const upperArm = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.14, 0.88, 10), blueGreyShirtMat);
+                upperArm.position.set(lx * 2.15, 3.65, -0.05);
+                upperArm.rotation.x = 1.05;
+                upperArm.rotation.z = lx > 0 ? 0.22 : -0.22;
+                driverBodyGroup.add(upperArm);
+            });
+
+            const driverNeck = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.2, 0.3, 10), driverSkinMat);
+            driverNeck.position.set(0, 4.18, -0.5);
+            driverBodyGroup.add(driverNeck);
+
+            const driverHead = new THREE.Mesh(new THREE.SphereGeometry(0.42, 16, 16), driverSkinMat);
+            driverHead.position.set(0, 4.55, -0.48);
+            driverBodyGroup.add(driverHead);
+
+            const driverEyeMat = new THREE.MeshBasicMaterial({ color: 0x0f172a });
+            const driverWhiteMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+            [-0.14, 0.14].forEach(ex => {
+                const eyeWhite = new THREE.Mesh(new THREE.SphereGeometry(0.065, 8, 8), driverWhiteMat);
+                eyeWhite.position.set(ex, 4.6, -0.1);
+                driverBodyGroup.add(eyeWhite);
+
+                const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.035, 8, 8), driverEyeMat);
+                pupil.position.set(ex, 4.6, -0.05);
+                driverBodyGroup.add(pupil);
+
+                const brow = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.035, 0.04), messyHairMat);
+                brow.position.set(ex, 4.71, -0.08);
+                driverBodyGroup.add(brow);
+            });
+            const driverSmile = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.035, 0.04), driverEyeMat);
+            driverSmile.position.set(0, 4.4, -0.09);
+            driverBodyGroup.add(driverSmile);
+
+            const hairBase = new THREE.Mesh(new THREE.SphereGeometry(0.44, 14, 14), messyHairMat);
+            hairBase.position.set(0, 4.66, -0.54);
+            driverBodyGroup.add(hairBase);
+
+            const hairTuftSpecs = [
+                [0, 4.98, -0.42, 0.22, 0.35, 0.15, 0.3, 0, 0.2],
+                [-0.24, 4.92, -0.38, 0.2, 0.32, 0.18, 0.2, 0, 0.45],
+                [0.24, 4.92, -0.38, 0.2, 0.32, 0.18, 0.2, 0, -0.45],
+                [0.08, 4.88, -0.22, 0.18, 0.28, 0.22, 0.65, 0.2, -0.2],
+                [-0.16, 4.86, -0.24, 0.17, 0.26, 0.2, 0.55, -0.2, 0.35],
+                [-0.36, 4.68, -0.45, 0.18, 0.28, 0.2, 0, 0, 0.75],
+                [0.36, 4.68, -0.45, 0.18, 0.28, 0.2, 0, 0, -0.75],
+                [0, 4.78, -0.82, 0.26, 0.34, 0.2, -0.45, 0, 0]
+            ];
+            hairTuftSpecs.forEach(([hx, hy, hz, r, h, s, rx, ry, rz]) => {
+                const tuft = new THREE.Mesh(new THREE.ConeGeometry(r, h, 7), messyHairMat);
+                tuft.position.set(hx, hy, hz);
+                tuft.rotation.set(rx, ry, rz);
+                driverBodyGroup.add(tuft);
+            });
+
+            forkliftGroup.add(driverBodyGroup);
+
+            const dashCowl = new THREE.Mesh(new THREE.BoxGeometry(2.6, 1.1, 1.1), bodyMat);
+            dashCowl.position.set(0, 2.5, 1.4);
+            forkliftGroup.add(dashCowl);
+
+            const steeringColumn = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 1.4, 10), darkMetalMat);
+            steeringColumn.rotation.x = -0.45;
+            steeringColumn.position.set(0, 3.2, 1.15);
+            forkliftGroup.add(steeringColumn);
+
+            const steeringWheel = new THREE.Mesh(new THREE.TorusGeometry(0.48, 0.08, 10, 24), darkMetalMat);
+            steeringWheel.rotation.x = Math.PI / 2 - 0.45;
+            steeringWheel.position.set(0, 3.8, 0.9);
+            forkliftGroup.add(steeringWheel);
+
+            const steeringRig = new THREE.Group();
+            steeringRig.position.set(0, 3.8, 0.9);
+            steeringRig.rotation.x = Math.PI / 2 - 0.45;
+
+            const wheelSpoke = new THREE.Mesh(new THREE.BoxGeometry(0.88, 0.07, 0.07), darkMetalMat);
+            steeringRig.add(wheelSpoke);
+
+            const gloveSkinMat = new THREE.MeshStandardMaterial({ color: 0xfdba74, roughness: 0.5 });
+            const cuffMat = new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.55 });
+
+            [-0.46, 0.46].forEach(hx => {
+                const handGroup = new THREE.Group();
+                handGroup.position.set(hx, 0.05, 0);
+
+                const palm = new THREE.Mesh(new THREE.SphereGeometry(0.13, 12, 12), gloveSkinMat);
+                handGroup.add(palm);
+
+                const fingers = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.16, 0.12), gloveSkinMat);
+                fingers.position.set(hx > 0 ? -0.04 : 0.04, 0.06, 0.03);
+                handGroup.add(fingers);
+
+                const forearm = new THREE.Mesh(new THREE.CylinderGeometry(0.10, 0.12, 0.65, 10), cuffMat);
+                forearm.position.set(hx * 0.35, -0.32, 0.18);
+                forearm.rotation.z = hx > 0 ? -0.28 : 0.28;
+                forearm.rotation.x = 0.35;
+                handGroup.add(forearm);
+
+                steeringRig.add(handGroup);
+            });
+            forkliftGroup.add(steeringRig);
+
+            [[-1.45, -1.75], [1.45, -1.75], [-1.45, 1.75], [1.45, 1.75]].forEach(([px, pz]) => {
+                const post = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 4.4, 10), darkMetalMat);
+                post.position.set(px, 4.4, pz);
+                post.castShadow = true;
+                forkliftGroup.add(post);
+            });
+
+            const roofFrame = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.22, 3.8), darkMetalMat);
+            roofFrame.position.set(0, 6.6, 0);
+            forkliftGroup.add(roofFrame);
+
+            const roofStrobe = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.28, 0.34, 0.45, 12),
+                new THREE.MeshBasicMaterial({ color: 0xfbbf24 })
+            );
+            roofStrobe.position.set(0, 6.95, -1.2);
+            forkliftGroup.add(roofStrobe);
+
+            const mastLeft = new THREE.Mesh(new THREE.BoxGeometry(0.32, 7.6, 0.42), darkMetalMat);
+            mastLeft.position.set(-1.15, 4.0, 2.55);
+            mastLeft.castShadow = true;
+            forkliftGroup.add(mastLeft);
+
+            const mastRight = mastLeft.clone();
+            mastRight.position.x = 1.15;
+            forkliftGroup.add(mastRight);
+
+            const liftCylinder = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.22, 7.0, 12), steelForkMat);
+            liftCylinder.position.set(0, 3.7, 2.55);
+            forkliftGroup.add(liftCylinder);
+
+            [2.0, 4.5, 7.2].forEach(cy => {
+                const crossbar = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.28, 0.35), darkMetalMat);
+                crossbar.position.set(0, cy, 2.55);
+                forkliftGroup.add(crossbar);
+            });
+
+            const forkCarriage = new THREE.Group();
+            const carriagePlate = new THREE.Mesh(new THREE.BoxGeometry(2.7, 1.3, 0.28), darkMetalMat);
+            carriagePlate.position.set(0, 1.2, 2.85);
+            forkCarriage.add(carriagePlate);
+
+            [-0.85, 0.85].forEach(fx => {
+                const shank = new THREE.Mesh(new THREE.BoxGeometry(0.36, 1.35, 0.22), steelForkMat);
+                shank.position.set(fx, 1.05, 3.05);
+                forkCarriage.add(shank);
+
+                const tine = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.16, 4.2), steelForkMat);
+                tine.position.set(fx, 0.42, 4.95);
+                tine.castShadow = true;
+                forkCarriage.add(tine);
+            });
+
+            const cargoMount = new THREE.Group();
+            cargoMount.position.set(0, 0.52, 4.85);
+            forkCarriage.add(cargoMount);
+            forkliftGroup.add(forkCarriage);
+
+            const tireGeo = new THREE.CylinderGeometry(0.85, 0.85, 0.7, 18);
+            const rimGeo = new THREE.CylinderGeometry(0.45, 0.45, 0.74, 16);
+            const tireMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.9 });
+            [[-1.8, -1.7], [1.8, -1.7], [-1.8, 1.6], [1.8, 1.6]].forEach(([wx, wz]) => {
+                const wheel = new THREE.Mesh(tireGeo, tireMat);
+                wheel.rotation.z = Math.PI / 2;
+                wheel.position.set(wx, 0.85, wz);
+                forkliftGroup.add(wheel);
+
+                const rim = new THREE.Mesh(rimGeo, bodyMat);
+                rim.rotation.z = Math.PI / 2;
+                rim.position.set(wx, 0.85, wz);
+                forkliftGroup.add(rim);
+            });
+
+            const guideArrowGroup = new THREE.Group();
+            const arrowShaft = new THREE.Mesh(
+                new THREE.BoxGeometry(0.55, 0.35, 1.8),
+                new THREE.MeshBasicMaterial({ color: 0xfacc15 })
+            );
+            arrowShaft.position.set(0, 0, -0.4);
+            guideArrowGroup.add(arrowShaft);
+
+            const arrowHead = new THREE.Mesh(
+                new THREE.ConeGeometry(0.85, 1.4, 12),
+                new THREE.MeshBasicMaterial({ color: 0xfacc15 })
+            );
+            arrowHead.rotation.x = Math.PI / 2;
+            arrowHead.position.set(0, 0, 0.9);
+            guideArrowGroup.add(arrowHead);
+            guideArrowGroup.position.set(0, 8.6, 0);
+            forkliftGroup.add(guideArrowGroup);
+
+            scene.add(forkliftGroup);
+
+            function setForkliftCargoVisual(cargoType) {
+                while (cargoMount.children.length > 0) cargoMount.remove(cargoMount.children[0]);
+                if (cargoType) cargoMount.add(buildCargoMesh(cargoType));
+            }
+
+            const employees = [];
+            function createEmployeeCharacter(type, startX, startZ, patrolAxis, patrolRange) {
+                const isEmployee = (type === 'employee');
+                const skinHex = isEmployee ? 0xffcba4 : 0x7c4727;
+                const shirtHex = isEmployee ? 0xfacc15 : 0xdc2626;
+                const speed = isEmployee ? 0.25 : 0.10;
+
+                const charGroup = new THREE.Group();
+                const skinMat = new THREE.MeshStandardMaterial({ color: skinHex, roughness: 0.6 });
+                const shirtMat = new THREE.MeshStandardMaterial({ color: shirtHex, roughness: 0.5 });
+                const jeansMat = new THREE.MeshStandardMaterial({ color: 0x1e3a8a, roughness: 0.8 });
+
+                const torso = new THREE.Mesh(new THREE.BoxGeometry(1.35, 1.85, 0.75), shirtMat);
+                torso.position.y = 2.65; torso.castShadow = true; charGroup.add(torso);
+                const head = new THREE.Mesh(new THREE.SphereGeometry(0.52, 16, 16), skinMat);
+                head.position.y = 4.15; charGroup.add(head);
+
+                const eyeWhiteMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+                const pupilMat = new THREE.MeshBasicMaterial({ color: 0x0f172a });
+                const browMat = new THREE.MeshBasicMaterial({ color: 0x271709 });
+                const mouthMat = new THREE.MeshBasicMaterial({ color: isEmployee ? 0x7f1d1d : 0x1e293b });
+
+                [-0.18, 0.18].forEach(ex => {
+                    const eyeWhite = new THREE.Mesh(new THREE.SphereGeometry(0.085, 10, 10), eyeWhiteMat);
+                    eyeWhite.position.set(ex, 4.22, 0.45);
+                    charGroup.add(eyeWhite);
+
+                    const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.048, 8, 8), pupilMat);
+                    pupil.position.set(ex, 4.22, 0.51);
+                    charGroup.add(pupil);
+
+                    const eyebrow = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.04, 0.05), browMat);
+                    eyebrow.position.set(ex, 4.36, 0.46);
+                    eyebrow.rotation.z = isEmployee ? (ex > 0 ? -0.12 : 0.12) : 0;
+                    charGroup.add(eyebrow);
+                });
+
+                const nose = new THREE.Mesh(new THREE.SphereGeometry(0.065, 8, 8), skinMat);
+                nose.position.set(0, 4.12, 0.53);
+                charGroup.add(nose);
+
+                const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.055, 0.05), mouthMat);
+                mouth.position.set(0, 3.97, 0.47);
+                charGroup.add(mouth);
+
+                const leftArm = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.18, 1.5, 10), skinMat);
+                leftArm.position.set(-0.9, 2.55, 0); charGroup.add(leftArm);
+                const rightArm = leftArm.clone(); rightArm.position.x = 0.9; charGroup.add(rightArm);
+
+                const leftLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.22, 1.75, 10), jeansMat);
+                leftLeg.position.set(-0.35, 0.9, 0); charGroup.add(leftLeg);
+                const rightLeg = leftLeg.clone(); rightLeg.position.x = 0.35; charGroup.add(rightLeg);
+
+                charGroup.position.set(startX, 0, startZ);
+                scene.add(charGroup);
+
+                employees.push({
+                    mesh: charGroup, leftLeg, rightLeg, leftArm, rightArm,
+                    type, speed, axis: patrolAxis, originX: startX, originZ: startZ,
+                    range: patrolRange, dir: 1, walkCycle: Math.random() * 10,
+                    alive: true, respawnTimer: 0
+                });
+            }
+
+            createEmployeeCharacter('temp',     -48, -35, 'z', 38);
+            createEmployeeCharacter('employee',   0, -20, 'z', 50);
+            createEmployeeCharacter('temp',      55,  10, 'x', 32);
+            createEmployeeCharacter('employee', -20,  65, 'x', 45);
+            createEmployeeCharacter('employee',  55, -68, 'x', 40);
+            createEmployeeCharacter('temp',      12,  35, 'z', 35);
+
+            function buildDogMesh() {
+                const dogGroup = new THREE.Group();
+                const furMat = new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.75 });
+                const darkFurMat = new THREE.MeshStandardMaterial({ color: 0x271709, roughness: 0.8 });
+                const collarMat = new THREE.MeshBasicMaterial({ color: 0xdc2626 });
+                const eyeMat = new THREE.MeshBasicMaterial({ color: 0xfef08a });
+
+                const body = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.95, 2.25), furMat);
+                body.position.set(0, 1.15, 0);
+                body.castShadow = true;
+                dogGroup.add(body);
+
+                const collar = new THREE.Mesh(new THREE.BoxGeometry(1.22, 0.98, 0.24), collarMat);
+                collar.position.set(0, 1.2, 0.92);
+                dogGroup.add(collar);
+
+                const head = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.88, 0.98), furMat);
+                head.position.set(0, 1.72, 1.25);
+                dogGroup.add(head);
+
+                const snout = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.45, 0.7), darkFurMat);
+                snout.position.set(0, 1.56, 1.9);
+                dogGroup.add(snout);
+
+                [-0.32, 0.32].forEach(ex => {
+                    const ear = new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.48, 8), darkFurMat);
+                    ear.position.set(ex, 2.32, 1.15);
+                    dogGroup.add(ear);
+
+                    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 8), eyeMat);
+                    eye.position.set(ex * 0.72, 1.85, 1.74);
+                    dogGroup.add(eye);
+                });
+
+                const tail = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.13, 0.95, 8), darkFurMat);
+                tail.position.set(0, 1.55, -1.25);
+                tail.rotation.x = -0.65;
+                dogGroup.add(tail);
+
+                const legs = [];
+                [[-0.38, 0.78], [0.38, 0.78], [-0.38, -0.78], [0.38, -0.78]].forEach(([lx, lz]) => {
+                    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.13, 1.0, 8), darkFurMat);
+                    leg.position.set(lx, 0.5, lz);
+                    dogGroup.add(leg);
+                    legs.push(leg);
+                });
+
+                return { mesh: dogGroup, legs, tail };
+            }
+
+            function spawnDogFromRandomBayDoor() {
+                if (bayDoorSpawnCoords.length === 0) return;
+
+                let chosenDoor = bayDoorSpawnCoords[Math.floor(Math.random() * bayDoorSpawnCoords.length)];
+                for (let attempt = 0; attempt < 8; attempt++) {
+                    const candidate = bayDoorSpawnCoords[Math.floor(Math.random() * bayDoorSpawnCoords.length)];
+                    if (Math.hypot(candidate.x - forkliftState.x, candidate.z - forkliftState.z) > 38) {
+                        chosenDoor = candidate;
+                        break;
+                    }
+                }
+
+                const dogObj = buildDogMesh();
+                dogObj.mesh.position.set(chosenDoor.x, 0, chosenDoor.z);
+                scene.add(dogObj.mesh);
+
+                activeDogs.push({
+                    mesh: dogObj.mesh,
+                    legs: dogObj.legs,
+                    tail: dogObj.tail,
+                    speed: 0.23,
+                    runCycle: Math.random() * 10,
+                    barkTimer: 60 + Math.floor(Math.random() * 90),
+                    fleeTimer: 0
+                });
+
+                dogsSpawnedThisLevel++;
+                playDogBarkSound();
+                showToast(`🐕 Stray Dog entered from the Bay Doors! (${dogsSpawnedThisLevel}/${totalDogsForLevel}) — Honk (SPACE) or Fire Rocket (R)!`, 'border-orange-500');
+                updateDogRadarLabel();
+            }
+
+            function updateDogRadarLabel() {
+                const statusEl = document.getElementById('dog-radar-status');
+                if (!statusEl) return;
+                if (currentLevel === 1) {
+                    statusEl.innerText = "50' CEILING";
+                    statusEl.className = "text-slate-400";
+                } else {
+                    statusEl.innerText = `🐕 DOGS: ${activeDogs.length} ACTIVE`;
+                    statusEl.className = activeDogs.length > 0 ? "text-orange-400 font-bold" : "text-emerald-400";
+                }
+            }
+
+            function recordSafetyIncident(reasonMsg) {
+                safetyIncidents++;
+                document.getElementById('incidents-display').innerText = `${safetyIncidents} / ${maxSafetyIncidents}`;
+                showToast(`${reasonMsg} (Strike ${safetyIncidents}/${maxSafetyIncidents})`, 'border-red-500');
+                if (safetyIncidents >= maxSafetyIncidents) {
+                    endGameSession(false, 'safety');
+                }
+            }
+
+            function spawnExplosion(x, y, z) {
+                const group = new THREE.Group();
+                group.position.set(x, y, z);
+
+                const coreMat = new THREE.MeshBasicMaterial({ color: 0xfef08a, transparent: true, opacity: 0.95 });
+                const coreMesh = new THREE.Mesh(new THREE.SphereGeometry(1.4, 16, 16), coreMat);
+                group.add(coreMesh);
+
+                const ringMat = new THREE.MeshBasicMaterial({ color: 0xf97316, transparent: true, opacity: 0.9, side: THREE.DoubleSide });
+                const shockRing = new THREE.Mesh(new THREE.RingGeometry(0.6, 1.4, 24), ringMat);
+                shockRing.rotation.x = Math.PI / 2;
+                shockRing.position.y = -y + 0.25;
+                group.add(shockRing);
+
+                const colors = [0xef4444, 0xf97316, 0xfacc15, 0xfef08a, 0xffffff, 0x475569];
+                const particles = [];
+
+                for (let i = 0; i < 85; i++) {
+                    const isSmoke = i >= 65;
+                    const pMat = new THREE.MeshBasicMaterial({
+                        color: isSmoke ? 0x334155 : colors[i % (colors.length - 1)],
+                        transparent: true,
+                        opacity: 1.0
+                    });
+                    const radius = isSmoke ? (0.55 + Math.random() * 0.65) : (0.32 + Math.random() * 0.55);
+                    const pMesh = (i % 3 === 0 && !isSmoke)
+                        ? new THREE.Mesh(new THREE.BoxGeometry(radius, radius, radius), pMat)
+                        : new THREE.Mesh(new THREE.SphereGeometry(radius, 8, 8), pMat);
+
+                    const angle1 = Math.random() * Math.PI * 2;
+                    const angle2 = Math.random() * Math.PI;
+                    const spd = isSmoke ? (0.18 + Math.random() * 0.38) : (0.35 + Math.random() * 1.15);
+                    particles.push({
+                        mesh: pMesh, isSmoke,
+                        vx: Math.sin(angle2) * Math.cos(angle1) * spd,
+                        vy: Math.abs(Math.cos(angle2)) * spd + (isSmoke ? 0.28 : 0.22),
+                        vz: Math.sin(angle2) * Math.sin(angle1) * spd,
+                        rotSpeed: (Math.random() - 0.5) * 0.25
+                    });
+                    group.add(pMesh);
+                }
+                scene.add(group);
+                activeExplosions.push({ group, coreMesh, shockRing, particles, age: 0 });
+            }
+
+            function fireForkliftRocket() {
+                if (!gameActive) return;
+                playRocketLaunchSound();
+
+                const rocketGroup = new THREE.Group();
+                const bodyGeo = new THREE.CylinderGeometry(0.22, 0.22, 1.8, 12);
+                bodyGeo.rotateX(Math.PI / 2);
+                const rocketBody = new THREE.Mesh(bodyGeo, new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.6, roughness: 0.3 }));
+                rocketGroup.add(rocketBody);
+
+                const noseGeo = new THREE.ConeGeometry(0.24, 0.65, 12);
+                noseGeo.rotateX(Math.PI / 2);
+                const rocketNose = new THREE.Mesh(noseGeo, new THREE.MeshBasicMaterial({ color: 0xdc2626 }));
+                rocketNose.position.z = 1.2;
+                rocketGroup.add(rocketNose);
+
+                const flameMesh = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.28, 8, 8),
+                    new THREE.MeshBasicMaterial({ color: 0xf97316 })
+                );
+                flameMesh.position.z = -1.05;
+                rocketGroup.add(flameMesh);
+
+                const sinA = Math.sin(forkliftState.angle);
+                const cosA = Math.cos(forkliftState.angle);
+                rocketGroup.position.set(
+                    forkliftState.x + sinA * 4.5,
+                    2.4,
+                    forkliftState.z + cosA * 4.5
+                );
+                rocketGroup.rotation.y = forkliftState.angle;
+                scene.add(rocketGroup);
+
+                activeRockets.push({
+                    mesh: rocketGroup,
+                    vx: sinA * 2.1,
+                    vz: cosA * 2.1,
+                    life: 110
+                });
+            }
+
+            const keys = { up: false, down: false, left: false, right: false, brake: false };
+            window.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && gameActive) {
+                    quitToMainMenu();
+                    return;
+                }
+                if ((e.key === 'c' || e.key === 'C') && gameActive) {
+                    cycleCameraMode();
+                    return;
+                }
+                if ((e.key === 'm' || e.key === 'M') && gameActive) {
+                    toggleMusicMute();
+                    return;
+                }
+                if ((e.key === 'r' || e.key === 'R') && !e.repeat && gameActive) {
+                    fireForkliftRocket();
+                    return;
+                }
+                if (e.key === 'w' || e.key === 'W' || e.key === 'ArrowUp') keys.up = true;
+                if (e.key === 's' || e.key === 'S' || e.key === 'ArrowDown') keys.down = true;
+                if (e.key === 'a' || e.key === 'A' || e.key === 'ArrowLeft') keys.left = true;
+                if (e.key === 'd' || e.key === 'D' || e.key === 'ArrowRight') keys.right = true;
+                if (e.key === ' ') {
+                    if (!keys.brake && gameActive) triggerForkliftHorn();
+                    keys.brake = true;
+                }
+            });
+            window.addEventListener('keyup', (e) => {
+                if (e.key === 'w' || e.key === 'W' || e.key === 'ArrowUp') keys.up = false;
+                if (e.key === 's' || e.key === 'S' || e.key === 'ArrowDown') keys.down = false;
+                if (e.key === 'a' || e.key === 'A' || e.key === 'ArrowLeft') keys.left = false;
+                if (e.key === 'd' || e.key === 'D' || e.key === 'ArrowRight') keys.right = false;
+                if (e.key === ' ') keys.brake = false;
+            });
+
+            function showToast(msg, borderClass) {
+                const t = document.getElementById('toast-alert');
+                t.innerText = msg;
+                t.className = `glass-panel px-6 py-3 rounded-2xl text-center font-extrabold text-sm md:text-base border-2 ${borderClass} shadow-2xl opacity-100 transform translate-y-0 transition-all duration-300`;
+                setTimeout(() => {
+                    t.className = `glass-panel px-6 py-3 rounded-2xl text-center font-extrabold text-sm md:text-base border-2 ${borderClass} shadow-2xl opacity-0 transform translate-y-4 transition-all duration-300`;
+                }, 2800);
+            }
+
+            function updateObjectiveHUD() {
+                const label = document.getElementById('mission-step-label');
+                const text = document.getElementById('mission-text');
+                const sub = document.getElementById('cargo-subtext');
+                if (missionStep === 'pickup_raw') {
+                    label.innerText = 'STEP 1: RAW MATERIAL PICKUP';
+                    text.innerText = `Pick up ${rawZones[activeRawIndex].name} (Blue Beacon)`;
+                    sub.innerText = 'Follow the guidance arrow above your forklift';
+                } else if (missionStep === 'fabricate') {
+                    label.innerText = 'STEP 2: CART FABRICATION';
+                    text.innerText = `Deliver to Assembly Station (${currentCartSpec.name})`;
+                    sub.innerText = 'Follow the Amber Beacon';
+                } else {
+                    label.innerText = 'STEP 3: SHIP TO BAYS 1-9';
+                    text.innerText = 'Deliver Completed Carts to Bays 1–9 Staging';
+                    sub.innerText = 'Follow the Emerald Beacon';
+                }
+            }
+
+            const minimapCanvas = document.getElementById('minimap-canvas');
+            const minimapCtx = minimapCanvas ? minimapCanvas.getContext('2d') : null;
+
+            function renderMinimap() {
+                if (!minimapCtx) return;
+                minimapCtx.fillStyle = '#0f172a';
+                minimapCtx.fillRect(0, 0, 170, 145);
+
+                const tx = (wx) => ((wx + WAREHOUSE_W / 2) / WAREHOUSE_W) * 170;
+                const tz = (wz) => ((wz + WAREHOUSE_D / 2) / WAREHOUSE_D) * 145;
+
+                // Front Office block
+                minimapCtx.fillStyle = '#334155';
+                minimapCtx.fillRect(tx(-WAREHOUSE_W / 2 + 1), tz(officeZ - officeD / 2), (officeW / WAREHOUSE_W) * 170, (officeD / WAREHOUSE_D) * 145);
+
+                // Storage Racks on Minimap
+                colliders.forEach(c => {
+                    if (c.label === 'Storage Rack') {
+                        const rx = tx(c.minX);
+                        const rz = tz(c.minZ);
+                        const rw = ((c.maxX - c.minX) / WAREHOUSE_W) * 170;
+                        const rd = ((c.maxZ - c.minZ) / WAREHOUSE_D) * 145;
+                        minimapCtx.fillStyle = '#15803d';
+                        minimapCtx.fillRect(rx, rz, rw, rd);
+                        minimapCtx.strokeStyle = '#ea580c';
+                        minimapCtx.lineWidth = 0.8;
+                        minimapCtx.strokeRect(rx, rz, rw, rd);
+                    }
+                });
+
+                const target = getActiveTargetCoords();
+                minimapCtx.fillStyle = (missionStep === 'pickup_raw') ? '#3b82f6' : (missionStep === 'fabricate' ? '#f59e0b' : '#10b981');
+                minimapCtx.beginPath(); minimapCtx.arc(tx(target.x), tz(target.z), 4, 0, Math.PI * 2); minimapCtx.fill();
+
+                activeDogs.forEach(dog => {
+                    const dx = tx(dog.mesh.position.x);
+                    const dz = tz(dog.mesh.position.z);
+                    minimapCtx.fillStyle = '#fb923c';
+                    minimapCtx.beginPath();
+                    minimapCtx.moveTo(dx, dz - 3.5);
+                    minimapCtx.lineTo(dx - 3, dz + 2.5);
+                    minimapCtx.lineTo(dx + 3, dz + 2.5);
+                    minimapCtx.closePath();
+                    minimapCtx.fill();
+                });
+
+                minimapCtx.fillStyle = '#ffffff';
+                minimapCtx.beginPath(); minimapCtx.arc(tx(forkliftState.x), tz(forkliftState.z), 3.5, 0, Math.PI * 2); minimapCtx.fill();
+            }
+
+            let lastPenaltyTime = 0;
+            let lastFrameTime = 0;
+            function updateSimulation(time) {
+                const rawDt = lastFrameTime ? (time - lastFrameTime) / 16.667 : 1;
+                lastFrameTime = time;
+                const dt = Math.min(Math.max(rawDt, 0.2), 2.5);
+
+                if (gameActive && hornCooldownRemaining > 0) {
+                    hornCooldownRemaining = Math.max(0, hornCooldownRemaining - (dt / 60));
+                    updateHornCooldownHUD();
+                }
+
+                robotArms.forEach((rob, idx) => {
+                    rob.turret.rotation.y = Math.sin(time * 0.0022 + rob.phase + idx) * 0.75;
+                    const flash = (Math.sin(time * 0.035 + idx * 3) > 0.2);
+                    rob.sparkGlow.visible = flash;
+                });
+
+                for (let i = activeRockets.length - 1; i >= 0; i--) {
+                    const r = activeRockets[i];
+                    r.mesh.position.x += r.vx * dt;
+                    r.mesh.position.z += r.vz * dt;
+                    r.life -= dt;
+
+                    let rocketDetonated = false;
+
+                    for (let dIdx = activeDogs.length - 1; dIdx >= 0; dIdx--) {
+                        const dog = activeDogs[dIdx];
+                        const distDog = Math.hypot(r.mesh.position.x - dog.mesh.position.x, r.mesh.position.z - dog.mesh.position.z);
+                        if (distDog < 3.8) {
+                            spawnExplosion(dog.mesh.position.x, 1.8, dog.mesh.position.z);
+                            playExplosionSound();
+                            scene.remove(dog.mesh);
+                            activeDogs.splice(dIdx, 1);
+                            updateDogRadarLabel();
+                            showToast(`💥 Neutralized Chasing Dog! (No Safety Strike)`, 'border-emerald-400');
+                            rocketDetonated = true;
+                            break;
+                        }
+                    }
+
+                    if (!rocketDetonated) {
+                        for (let j = 0; j < employees.length; j++) {
+                            const emp = employees[j];
+                            if (!emp.alive) continue;
+                            const distEmp = Math.hypot(r.mesh.position.x - emp.mesh.position.x, r.mesh.position.z - emp.mesh.position.z);
+                            if (distEmp < 3.6) {
+                                emp.alive = false;
+                                emp.mesh.visible = false;
+                                emp.respawnTimer = 600;
+                                spawnExplosion(emp.mesh.position.x, 2.8, emp.mesh.position.z);
+                                playExplosionSound();
+                                const screamWord = playManReactionVoice();
+                                const empLabel = (emp.type === 'employee') ? 'Employee (Yellow Shirt)' : 'Temp (Red Shirt)';
+                                recordSafetyIncident(`💥 "${screamWord}" Rocket blew up ${empLabel}!`);
+                                rocketDetonated = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (!rocketDetonated) {
+                        if (Math.abs(r.mesh.position.x) > WAREHOUSE_W / 2 || Math.abs(r.mesh.position.z) > WAREHOUSE_D / 2 || r.life <= 0) {
+                            spawnExplosion(r.mesh.position.x, 2.4, r.mesh.position.z);
+                            playExplosionSound();
+                            rocketDetonated = true;
+                        } else {
+                            for (let k = 0; k < colliders.length; k++) {
+                                const c = colliders[k];
+                                if (r.mesh.position.x > c.minX && r.mesh.position.x < c.maxX && r.mesh.position.z > c.minZ && r.mesh.position.z < c.maxZ) {
+                                    spawnExplosion(r.mesh.position.x, 2.4, r.mesh.position.z);
+                                    playExplosionSound();
+                                    rocketDetonated = true;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
+                    if (rocketDetonated) {
+                        scene.remove(r.mesh);
+                        activeRockets.splice(i, 1);
+                    }
+                }
+
+                for (let i = activeExplosions.length - 1; i >= 0; i--) {
+                    const exp = activeExplosions[i];
+                    exp.age += dt;
+                    const maxAge = 48;
+
+                    if (exp.coreMesh) {
+                        const coreScale = 1 + exp.age * 0.28;
+                        exp.coreMesh.scale.set(coreScale, coreScale, coreScale);
+                        exp.coreMesh.material.opacity = Math.max(0, 0.95 - (exp.age / 18));
+                    }
+                    if (exp.shockRing) {
+                        const ringScale = 1 + exp.age * 0.45;
+                        exp.shockRing.scale.set(ringScale, ringScale, 1);
+                        exp.shockRing.material.opacity = Math.max(0, 0.9 - (exp.age / 24));
+                    }
+
+                    exp.particles.forEach(p => {
+                        p.mesh.position.x += p.vx * dt;
+                        p.mesh.position.y += p.vy * dt;
+                        p.mesh.position.z += p.vz * dt;
+                        if (p.isSmoke) {
+                            p.vy *= Math.pow(0.97, dt);
+                            const s = 1 + exp.age * 0.04;
+                            p.mesh.scale.set(s, s, s);
+                        } else {
+                            p.vy -= 0.022 * dt;
+                            p.mesh.rotation.x += p.rotSpeed * dt;
+                            p.mesh.rotation.y += p.rotSpeed * dt;
+                        }
+                        p.mesh.material.opacity = Math.max(0, 1 - exp.age / maxAge);
+                    });
+                    if (exp.age > maxAge) {
+                        scene.remove(exp.group);
+                        activeExplosions.splice(i, 1);
+                    }
+                }
+
+                if (gameActive && totalDogsForLevel > 0) {
+                    if (dogsSpawnedThisLevel < totalDogsForLevel) {
+                        nextDogSpawnTimer -= dt;
+                        if (nextDogSpawnTimer <= 0) {
+                            spawnDogFromRandomBayDoor();
+                            nextDogSpawnTimer = 260 + Math.floor(Math.random() * 140);
+                        }
+                    }
+
+                    for (let dIdx = activeDogs.length - 1; dIdx >= 0; dIdx--) {
+                        const dog = activeDogs[dIdx];
+                        const dx = forkliftState.x - dog.mesh.position.x;
+                        const dz = forkliftState.z - dog.mesh.position.z;
+                        const distToForklift = Math.hypot(dx, dz);
+
+                        const isFleeing = dog.fleeTimer && dog.fleeTimer > 0;
+                        if (isFleeing) {
+                            dog.fleeTimer -= dt;
+                        }
+
+                        // Face away from the forklift when fleeing, or toward the forklift when chasing
+                        const moveAngle = isFleeing
+                            ? Math.atan2(-dx, -dz)
+                            : Math.atan2(dx, dz);
+
+                        dog.mesh.rotation.y = moveAngle;
+
+                        const currentDogSpeed = isFleeing ? dog.speed * 1.35 : dog.speed;
+                        const stepX = Math.sin(moveAngle) * currentDogSpeed * dt;
+                        const stepZ = Math.cos(moveAngle) * currentDogSpeed * dt;
+                        const candX = dog.mesh.position.x + stepX;
+                        const candZ = dog.mesh.position.z + stepZ;
+
+                        const wallLimX = WAREHOUSE_W / 2 - 3.0;
+                        const wallLimZ = WAREHOUSE_D / 2 - 3.0;
+                        let blockedX = Math.abs(candX) > wallLimX;
+                        let blockedZ = Math.abs(candZ) > wallLimZ;
+                        const dogPad = 1.3;
+                        for (let cIdx = 0; cIdx < colliders.length; cIdx++) {
+                            const c = colliders[cIdx];
+                            if (candX > c.minX - dogPad && candX < c.maxX + dogPad && dog.mesh.position.z > c.minZ - dogPad && dog.mesh.position.z < c.maxZ + dogPad) {
+                                blockedX = true;
+                            }
+                            if (dog.mesh.position.x > c.minX - dogPad && dog.mesh.position.x < c.maxX + dogPad && candZ > c.minZ - dogPad && candZ < c.maxZ + dogPad) {
+                                blockedZ = true;
+                            }
+                        }
+                        if (!blockedX) dog.mesh.position.x = candX;
+                        if (!blockedZ) dog.mesh.position.z = candZ;
+
+                        dog.runCycle += (isFleeing ? 0.5 : 0.34) * dt;
+                        dog.legs[0].rotation.x = Math.sin(dog.runCycle) * 0.75;
+                        dog.legs[1].rotation.x = -Math.sin(dog.runCycle) * 0.75;
+                        dog.legs[2].rotation.x = -Math.sin(dog.runCycle) * 0.75;
+                        dog.legs[3].rotation.x = Math.sin(dog.runCycle) * 0.75;
+                        dog.tail.rotation.z = Math.sin(dog.runCycle * 1.5) * 0.4;
+
+                        if (!isFleeing) {
+                            dog.barkTimer -= dt;
+                            if (dog.barkTimer <= 0) {
+                                if (distToForklift < 85) playDogBarkSound();
+                                dog.barkTimer = 130 + Math.floor(Math.random() * 110);
+                            }
+
+                            if (distToForklift < 3.6) {
+                                playDogBarkSound();
+                                endGameSession(false, 'dog');
+                                return;
+                            }
+                        }
+                    }
+                }
+
+                let closestEmpDist = 999;
+                let closestEmpType = 'employee';
+
+                employees.forEach(emp => {
+                    if (!emp.alive) {
+                        emp.respawnTimer -= dt;
+                        if (emp.respawnTimer <= 0) {
+                            emp.alive = true;
+                            emp.mesh.visible = true;
+                            emp.mesh.position.set(emp.originX, 0, emp.originZ);
+                        }
+                        return;
+                    }
+
+                    const empStep = emp.speed * 0.75 * dt;
+                    emp.walkCycle += empStep * 0.65;
+                    emp.leftLeg.rotation.x = Math.sin(emp.walkCycle) * 0.55;
+                    emp.rightLeg.rotation.x = -Math.sin(emp.walkCycle) * 0.55;
+                    emp.leftArm.rotation.x = -Math.sin(emp.walkCycle) * 0.45;
+                    emp.rightArm.rotation.x = Math.sin(emp.walkCycle) * 0.45;
+
+                    if (emp.axis === 'z') {
+                        emp.mesh.position.z += empStep * emp.dir;
+                        emp.mesh.rotation.y = emp.dir > 0 ? 0 : Math.PI;
+                        if (Math.abs(emp.mesh.position.z - emp.originZ) > emp.range) emp.dir *= -1;
+                    } else {
+                        emp.mesh.position.x += empStep * emp.dir;
+                        emp.mesh.rotation.y = emp.dir > 0 ? Math.PI / 2 : -Math.PI / 2;
+                        if (Math.abs(emp.mesh.position.x - emp.originX) > emp.range) emp.dir *= -1;
+                    }
+
+                    const dist = Math.hypot(forkliftState.x - emp.mesh.position.x, forkliftState.z - emp.mesh.position.z);
+                    if (dist < closestEmpDist) {
+                        closestEmpDist = dist;
+                        closestEmpType = emp.type;
+                    }
+
+                    if (gameActive && dist < 3.4) {
+                        forkliftState.speed = -0.25;
+                        if (time - lastPenaltyTime > 2000) {
+                            lastPenaltyTime = time;
+                            playCollisionSound(0.6);
+                            const reactionText = playManReactionVoice();
+                            const empName = (emp.type === 'employee') ? 'Employee (Yellow Shirt)' : 'Temp (Red Shirt)';
+                            recordSafetyIncident(`⚠️ "${reactionText}" Hit ${empName}!`);
+                        }
+                    }
+                });
+
+                let closestDogDist = 999;
+                activeDogs.forEach(dog => {
+                    const d = Math.hypot(forkliftState.x - dog.mesh.position.x, forkliftState.z - dog.mesh.position.z);
+                    if (d < closestDogDist) closestDogDist = d;
+                });
+
+                const safetyBanner = document.getElementById('safety-banner');
+                if (gameActive && closestDogDist < 26) {
+                    safetyBanner.style.opacity = '1';
+                    document.getElementById('safety-text').innerText = '🐕 DANGER: BARKING DOG CHASING! PRESS [R] TO FIRE ROCKET!';
+                } else if (gameActive && closestEmpDist < 16) {
+                    safetyBanner.style.opacity = '1';
+                    document.getElementById('safety-text').innerText =
+                        closestEmpType === 'employee' ? '⚠️ CAUTION: EMPLOYEE CROSSING!' : '⚠️ CAUTION: TEMP WORKING IN AISLE!';
+                } else {
+                    safetyBanner.style.opacity = '0';
+                }
+
+                if (!gameActive) {
+                    const orbitAngle = time * 0.00025;
+                    camera.position.set(Math.sin(orbitAngle) * 75, 28, Math.cos(orbitAngle) * 75);
+                    camera.lookAt(0, 6, 0);
+                    return;
+                }
+
+                if (keys.up) forkliftState.speed = Math.min(forkliftState.speed + forkliftState.accel * dt, forkliftState.maxSpeed);
+                else if (keys.down) forkliftState.speed = Math.max(forkliftState.speed - forkliftState.accel * dt, -forkliftState.maxSpeed * 0.6);
+                else if (keys.brake) forkliftState.speed *= Math.pow(0.82, dt);
+                else forkliftState.speed *= Math.pow(forkliftState.friction, dt);
+
+                if (Math.abs(forkliftState.speed) > 0.01) {
+                    const dirMultiplier = forkliftState.speed >= 0 ? 1 : -1;
+                    if (keys.left) forkliftState.angle += forkliftState.turnRate * dirMultiplier * dt;
+                    if (keys.right) forkliftState.angle -= forkliftState.turnRate * dirMultiplier * dt;
+                }
+
+                const nextX = forkliftState.x + Math.sin(forkliftState.angle) * forkliftState.speed * dt;
+                const nextZ = forkliftState.z + Math.cos(forkliftState.angle) * forkliftState.speed * dt;
+
+                const pad = 2.7;
+                let hitObstacle = false;
+                if (nextX < -WAREHOUSE_W / 2 + pad || nextX > WAREHOUSE_W / 2 - pad || nextZ < -WAREHOUSE_D / 2 + pad || nextZ > WAREHOUSE_D / 2 - pad) {
+                    hitObstacle = true;
+                } else {
+                    for (let i = 0; i < colliders.length; i++) {
+                        const c = colliders[i];
+                        if (nextX > c.minX - pad && nextX < c.maxX + pad && nextZ > c.minZ - pad && nextZ < c.maxZ + pad) {
+                            hitObstacle = true; break;
+                        }
+                    }
+                }
+
+                if (!hitObstacle) {
+                    forkliftState.x = nextX; forkliftState.z = nextZ;
+                } else {
+                    if (Math.abs(forkliftState.speed) > 0.04) {
+                        playCollisionSound(forkliftState.speed);
+                    }
+                    forkliftState.speed = -forkliftState.speed * 0.45;
+                }
+
+                forkliftGroup.position.set(forkliftState.x, 0, forkliftState.z);
+                forkliftGroup.rotation.y = forkliftState.angle;
+
+                const targetWheelTurn = (keys.left ? 0.65 : (keys.right ? -0.65 : 0));
+                steeringRig.rotation.z += (targetWheelTurn - steeringRig.rotation.z) * 0.2;
+
+                const target = getActiveTargetCoords();
+                const angleToTarget = Math.atan2(target.x - forkliftState.x, target.z - forkliftState.z);
+                guideArrowGroup.rotation.y = angleToTarget - forkliftState.angle;
+
+                const mph = Math.abs(forkliftState.speed * 24.0).toFixed(1);
+                document.getElementById('speed-readout').innerText = `${mph} MPH`;
+
+                driverBodyGroup.visible = (cameraMode !== 'first_person');
+
+                if (cameraMode === 'first_person') {
+                    const sinA = Math.sin(forkliftState.angle);
+                    const cosA = Math.cos(forkliftState.angle);
+                    camera.position.set(
+                        forkliftState.x + sinA * 0.08,
+                        4.68,
+                        forkliftState.z + cosA * 0.08
+                    );
+                    camera.lookAt(
+                        forkliftState.x + sinA * 10,
+                        2.75,
+                        forkliftState.z + cosA * 10
+                    );
+                } else {
+                    const camDist = cameraMode === 'chase' ? 16.5 : 28.0;
+                    const camHeight = cameraMode === 'chase' ? 8.2 : 22.0;
+                    const desiredCamX = forkliftState.x - Math.sin(forkliftState.angle) * camDist;
+                    const desiredCamZ = forkliftState.z - Math.cos(forkliftState.angle) * camDist;
+                    camera.position.x += (desiredCamX - camera.position.x) * 0.12;
+                    camera.position.z += (desiredCamZ - camera.position.z) * 0.12;
+                    camera.position.y += (camHeight - camera.position.y) * 0.12;
+                    camera.lookAt(forkliftState.x + Math.sin(forkliftState.angle) * 10, 3.2, forkliftState.z + Math.cos(forkliftState.angle) * 10);
+                }
+
+                const distToTarget = Math.hypot(forkliftState.x - target.x, forkliftState.z - target.z);
+                if (distToTarget < 6.2) {
+                    if (missionStep === 'pickup_raw') {
+                        const rawItem = rawZones[activeRawIndex];
+                        currentCargoType = rawItem.type;
+                        setForkliftCargoVisual(currentCargoType);
+                        currentCartSpec = cartCatalog[score % cartCatalog.length];
+                        missionStep = 'fabricate';
+                        playSound('pickup');
+                        showToast(`📦 Loaded ${rawItem.name}! Head to Fabrication.`, 'border-blue-400');
+                        syncBeaconVisuals();
+                        updateObjectiveHUD();
+                    } else if (missionStep === 'fabricate') {
+                        currentCargoType = currentCartSpec.id;
+                        setForkliftCargoVisual(currentCargoType);
+                        missionStep = 'deliver_bays';
+                        playSound('pickup');
+                        showToast(`🛠️ Assembled ${currentCartSpec.name}! Deliver to Bays 1–9.`, 'border-amber-400');
+                        syncBeaconVisuals();
+                        updateObjectiveHUD();
+                    } else if (missionStep === 'deliver_bays') {
+                        score++;
+                        document.getElementById('score-display').innerText = `${score} / ${targetScore}`;
+                        const deliveredVisual = buildCargoMesh(currentCargoType);
+                        deliveredVisual.position.set(-88 + (score * 5.5), 0, -82);
+                        scene.add(deliveredVisual);
+
+                        currentCargoType = null;
+                        setForkliftCargoVisual(null);
+                        activeRawIndex = (activeRawIndex + 1) % rawZones.length;
+                        missionStep = 'pickup_raw';
+                        playSound('deliver');
+                        showToast(`✅ Delivered to Bays 1–9! (${score}/${targetScore})`, 'border-emerald-400');
+                        syncBeaconVisuals();
+                        updateObjectiveHUD();
+
+                        if (score >= targetScore) endGameSession(true);
+                    }
+                }
+
+                renderMinimap();
+            }
+
+            function animate(time) {
+                requestAnimationFrame(animate);
+                updateSimulation(time || 0);
+                renderer.render(scene, camera);
+            }
+
+            function startGameSession(levelToStart = 1) {
+                currentLevel = typeof levelToStart === 'number' ? levelToStart : 1;
+                document.getElementById('start-screen').classList.add('hidden');
+                document.getElementById('how-to-play-modal').classList.add('hidden');
+                document.getElementById('game-over-screen').classList.add('hidden');
+                document.getElementById('hud').classList.remove('hidden');
+
+                score = 0; safetyIncidents = 0; timeLeft = 150;
+                missionStep = 'pickup_raw'; activeRawIndex = 0; currentCargoType = null;
+                setForkliftCargoVisual(null);
+
+                employees.forEach(emp => {
+                    emp.alive = true;
+                    emp.mesh.visible = true;
+                    emp.mesh.position.set(emp.originX, 0, emp.originZ);
+                });
+                activeRockets.forEach(r => scene.remove(r.mesh));
+                activeRockets.length = 0;
+
+                activeDogs.forEach(d => scene.remove(d.mesh));
+                activeDogs.length = 0;
+
+                totalDogsForLevel = currentLevel >= 2 ? 4 * Math.pow(2, currentLevel - 2) : 0;
+                dogsSpawnedThisLevel = 0;
+                nextDogSpawnTimer = 95;
+                hornCooldownRemaining = 0;
+                updateHornCooldownHUD();
+
+                forkliftState.x = 0; forkliftState.z = 75; forkliftState.angle = Math.PI; forkliftState.speed = 0;
+                document.getElementById('level-display').innerText = `LVL ${currentLevel}`;
+                document.getElementById('score-display').innerText = `0 / ${targetScore}`;
+                document.getElementById('incidents-display').innerText = `0 / ${maxSafetyIncidents}`;
+                updateDogRadarLabel();
+                syncBeaconVisuals(); updateObjectiveHUD();
+                gameActive = true;
+                startBackgroundMusic();
+
+                if (currentLevel >= 2) {
+                    showToast(`🚨 LEVEL ${currentLevel}: Watch out! Up to ${totalDogsForLevel} stray dogs will spawn from the Bay Doors!`, 'border-orange-400');
+                }
+
+                clearInterval(timerInterval);
+                timerInterval = setInterval(() => {
+                    timeLeft--;
+                    const mins = Math.floor(timeLeft / 60).toString().padStart(2, '0');
+                    const secs = (timeLeft % 60).toString().padStart(2, '0');
+                    document.getElementById('timer-display').innerText = `${mins}:${secs}`;
+                    if (timeLeft <= 0) endGameSession(false, 'time');
+                }, 1000);
+            }
+
+            function endGameSession(won, reason = 'time') {
+                gameActive = false;
+                stopBackgroundMusic();
+                clearInterval(timerInterval);
+                document.getElementById('hud').classList.add('hidden');
+                document.getElementById('game-over-screen').classList.remove('hidden');
+
+                const restartBtn = document.getElementById('restart-btn');
+                if (won) {
+                    const nextLvl = currentLevel + 1;
+                    const nextDogs = 4 * Math.pow(2, nextLvl - 2);
+                    modalNextAction = 'next_level';
+                    document.getElementById('go-title').innerText = `LEVEL ${currentLevel} COMPLETE!`;
+                    document.getElementById('go-message').innerText = `Awesome job! All 5 cart orders are staged at Bays 1–9. Get ready for Level ${nextLvl}: ${nextDogs} barking dogs will spawn from the bay doors!`;
+                    restartBtn.innerText = `START LEVEL ${nextLvl} (${nextDogs} DOGS) ➔`;
+                } else {
+                    modalNextAction = 'restart';
+                    restartBtn.innerText = 'RUN SHIFT AGAIN (LVL 1) ↻';
+                    if (reason === 'dog') {
+                        document.getElementById('go-title').innerText = 'CAUGHT BY A WAREHOUSE DOG!';
+                        document.getElementById('go-message').innerText = 'A stray warehouse dog chased down your forklift! Use your Rocket (R key) to blast chasing dogs before they reach your cab.';
+                    } else if (reason === 'safety') {
+                        document.getElementById('go-title').innerText = 'TERMINATED: 3 SAFETY STRIKES!';
+                        document.getElementById('go-message').innerText = 'HR & Safety shut down your forklift shift after 3 safety incidents on the floor!';
+                    } else {
+                        document.getElementById('go-title').innerText = 'SHIFT TIME EXPIRED!';
+                        document.getElementById('go-message').innerText = 'Shift buzzer sounded before all orders reached Bays 1–9. Give it another run!';
+                    }
+                }
+                document.getElementById('go-score').innerText = `${score} / ${targetScore}`;
+                document.getElementById('go-incidents').innerText = `${safetyIncidents} / ${maxSafetyIncidents}`;
+            }
+
+            function quitToMainMenu() {
+                gameActive = false;
+                stopBackgroundMusic();
+                startMenuMusic();
+                clearInterval(timerInterval);
+                keys.up = false; keys.down = false; keys.left = false; keys.right = false; keys.brake = false;
+                forkliftState.speed = 0;
+                activeDogs.forEach(d => scene.remove(d.mesh));
+                activeDogs.length = 0;
+                document.getElementById('hud').classList.add('hidden');
+                document.getElementById('game-over-screen').classList.add('hidden');
+                document.getElementById('start-screen').classList.remove('hidden');
+            }
+
+            function cycleCameraMode() {
+                if (cameraMode === 'chase') cameraMode = 'high';
+                else if (cameraMode === 'high') cameraMode = 'first_person';
+                else cameraMode = 'chase';
+
+                const camToggleBtn = document.getElementById('cam-toggle-btn');
+                if (camToggleBtn) {
+                    if (cameraMode === 'chase') camToggleBtn.innerText = '🎥 Cam: Chase 3D';
+                    else if (cameraMode === 'high') camToggleBtn.innerText = '🎥 Cam: High Angle';
+                    else camToggleBtn.innerText = '🎥 Cam: First Person';
+                }
+            }
+
+            document.getElementById('start-btn').addEventListener('click', () => startGameSession(1));
+            
+            document.getElementById('how-to-play-btn').addEventListener('click', () => {
+                document.getElementById('how-to-play-modal').classList.remove('hidden');
+            });
+
+            document.getElementById('close-modal-btn').addEventListener('click', () => {
+                document.getElementById('how-to-play-modal').classList.add('hidden');
+            });
+
+            document.getElementById('restart-btn').addEventListener('click', () => {
+                if (modalNextAction === 'next_level') {
+                    startGameSession(currentLevel + 1);
+                } else {
+                    startGameSession(1);
+                }
+            });
+
+            const quitMenuBtn = document.getElementById('quit-menu-btn');
+            if (quitMenuBtn) quitMenuBtn.addEventListener('click', quitToMainMenu);
+
+            const camToggleBtn = document.getElementById('cam-toggle-btn');
+            if (camToggleBtn) camToggleBtn.addEventListener('click', cycleCameraMode);
+
+            const rocketBtn = document.getElementById('rocket-btn');
+            if (rocketBtn) rocketBtn.addEventListener('click', fireForkliftRocket);
+
+            const musicToggleBtn = document.getElementById('music-toggle-btn');
+            if (musicToggleBtn) musicToggleBtn.addEventListener('click', toggleMusicMute);
+
+            const bindTouchBtn = (id, keyName) => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                el.addEventListener('mousedown', () => { keys[keyName] = true; });
+                el.addEventListener('mouseup', () => { keys[keyName] = false; });
+                el.addEventListener('mouseleave', () => { keys[keyName] = false; });
+                el.addEventListener('touchstart', (e) => { e.preventDefault(); keys[keyName] = true; });
+                el.addEventListener('touchend', (e) => { e.preventDefault(); keys[keyName] = false; });
+            };
+            bindTouchBtn('btn-up', 'up');
+            bindTouchBtn('btn-down', 'down');
+            bindTouchBtn('btn-left', 'left');
+            bindTouchBtn('btn-right', 'right');
+
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+
+            window.onload = function() {
+                animate(0);
+            };
+        })();
+    </script>
+</body>
+</html>
