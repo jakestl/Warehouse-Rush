@@ -937,11 +937,110 @@
             const cardboardMat = new THREE.MeshStandardMaterial({ color: 0xb45309, roughness: 0.85 });
             const woodPalletMat = new THREE.MeshStandardMaterial({ color: 0x92400e, roughness: 0.9 });
 
+            const robotArms = [];
+            const laserHeads = [];
+            const tubeBenders = [];
+            const tubeLasers = [];
+            const punchPresses = [];
+            const emissiveIndicators = [];
+
+            // Helper: Build Curved Pneumatic Hose or Industrial Conduit via THREE.CatmullRomCurve3 & THREE.TubeGeometry
+            function createPneumaticHose(pointsList, radius = 0.09, colorHex = 0x0f172a, metalness = 0.35, roughness = 0.45, segments = 28) {
+                const vectors = pointsList.map(pt => new THREE.Vector3(pt[0], pt[1], pt[2]));
+                const curve = new THREE.CatmullRomCurve3(vectors);
+                const tubeGeo = new THREE.TubeGeometry(curve, segments, radius, 8, false);
+                const tubeMat = new THREE.MeshStandardMaterial({ color: colorHex, metalness: metalness, roughness: roughness });
+                const mesh = new THREE.Mesh(tubeGeo, tubeMat);
+                mesh.castShadow = true;
+                return mesh;
+            }
+
+            // Helper: Build Detailed Industrial Control Panel with Inset Glowing Emissive Screen & Indicator Buttons
+            function createControlPanelUnit(w = 1.4, h = 1.1, d = 0.24, screenHex = 0x38bdf8, screenEmissive = 0x0284c7) {
+                const panelGroup = new THREE.Group();
+                const enclosureMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.65, roughness: 0.35 });
+                const bezelMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, metalness: 0.5, roughness: 0.4 });
+
+                const box = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), enclosureMat);
+                box.castShadow = true;
+                panelGroup.add(box);
+
+                // Recessed screen bezel
+                const screenW = w * 0.78;
+                const screenH = h * 0.48;
+                const bezel = new THREE.Mesh(new THREE.BoxGeometry(screenW + 0.08, screenH + 0.08, 0.04), bezelMat);
+                bezel.position.set(0, h * 0.16, d / 2 + 0.01);
+                panelGroup.add(bezel);
+
+                // Inset glowing emissive HMI screen
+                const screenMat = new THREE.MeshStandardMaterial({
+                    color: screenHex,
+                    emissive: screenEmissive,
+                    emissiveIntensity: 0.95,
+                    roughness: 0.15,
+                    metalness: 0.1
+                });
+                const screenMesh = new THREE.Mesh(new THREE.BoxGeometry(screenW, screenH, 0.03), screenMat);
+                screenMesh.position.set(0, h * 0.16, d / 2 + 0.025);
+                panelGroup.add(screenMesh);
+
+                // Telemetry waveform bars on the inset screen
+                const barMat = new THREE.MeshStandardMaterial({
+                    color: 0xe0f2fe,
+                    emissive: 0x7dd3fc,
+                    emissiveIntensity: 1.25,
+                    roughness: 0.1
+                });
+                [-0.26, -0.08, 0.10, 0.26].forEach((bxFactor, idx) => {
+                    const barH = screenH * (0.35 + (idx % 3) * 0.2);
+                    const bar = new THREE.Mesh(new THREE.BoxGeometry(screenW * 0.12, barH, 0.015), barMat);
+                    bar.position.set(screenW * bxFactor, h * 0.16 - (screenH - barH) * 0.25, d / 2 + 0.045);
+                    panelGroup.add(bar);
+                });
+
+                // Glowing emissive indicator buttons (Green Start, Amber Cycle, Cyan Net, Red E-Stop)
+                const buttonSpecs = [
+                    { x: -w * 0.30, color: 0x4ade80, emissive: 0x16a34a, intensity: 1.15, pulseOffset: 0.0 },
+                    { x: -w * 0.10, color: 0xfbbf24, emissive: 0xd97706, intensity: 1.05, pulseOffset: 1.7 },
+                    { x:  w * 0.10, color: 0x38bdf8, emissive: 0x0284c7, intensity: 1.00, pulseOffset: 3.1 },
+                    { x:  w * 0.30, color: 0xf87171, emissive: 0xdc2626, intensity: 1.25, pulseOffset: 4.5, isEstop: true }
+                ];
+                buttonSpecs.forEach(spec => {
+                    if (spec.isEstop) {
+                        const collar = new THREE.Mesh(
+                            new THREE.CylinderGeometry(0.085, 0.085, 0.03, 12),
+                            new THREE.MeshStandardMaterial({ color: 0xfacc15, roughness: 0.3 })
+                        );
+                        collar.rotation.x = Math.PI / 2;
+                        collar.position.set(spec.x, -h * 0.24, d / 2 + 0.015);
+                        panelGroup.add(collar);
+                    }
+                    const btnMat = new THREE.MeshStandardMaterial({
+                        color: spec.color,
+                        emissive: spec.emissive,
+                        emissiveIntensity: spec.intensity,
+                        roughness: 0.2,
+                        metalness: 0.15
+                    });
+                    const btnRadius = spec.isEstop ? 0.065 : 0.052;
+                    const btnMesh = new THREE.Mesh(new THREE.CylinderGeometry(btnRadius, btnRadius, 0.06, 12), btnMat);
+                    btnMesh.rotation.x = Math.PI / 2;
+                    btnMesh.position.set(spec.x, -h * 0.24, d / 2 + 0.035);
+                    panelGroup.add(btnMesh);
+                    emissiveIndicators.push({ mat: btnMat, baseIntensity: spec.intensity, phase: spec.pulseOffset + Math.random() * 2 });
+                });
+
+                return panelGroup;
+            }
+
+            let industrialRackCounter = 0;
             function createIndustrialRack(x, z, lengthZ, tiers = 4) {
+                const rackIndex = industrialRackCounter++;
                 const rackGroup = new THREE.Group();
                 const widthX = 7.5; const uprightH = tiers * 5.2;
                 const numBays = Math.max(2, Math.floor(lengthZ / 10));
                 const stepZ = lengthZ / numBays;
+                const braceMat = new THREE.MeshStandardMaterial({ color: 0x166534, metalness: 0.4, roughness: 0.5 });
 
                 for (let i = 0; i <= numBays; i++) {
                     const curZ = -lengthZ / 2 + i * stepZ;
@@ -949,6 +1048,21 @@
                     postL.position.set(-widthX / 2, uprightH / 2, curZ); postL.castShadow = true; rackGroup.add(postL);
                     const postR = new THREE.Mesh(new THREE.BoxGeometry(0.45, uprightH, 0.45), greenUprightMat);
                     postR.position.set(widthX / 2, uprightH / 2, curZ); postR.castShadow = true; rackGroup.add(postR);
+
+                    // Horizontal & diagonal structural cross-bracing on end & bay frames
+                    if (i === 0 || i === numBays || i % 2 === 1) {
+                        for (let t = 0; t < tiers; t++) {
+                            const by = t * 4.8 + 2.4;
+                            const hStrut = new THREE.Mesh(new THREE.BoxGeometry(widthX, 0.18, 0.18), braceMat);
+                            hStrut.position.set(0, by - 1.2, curZ);
+                            rackGroup.add(hStrut);
+
+                            const diagStrut = new THREE.Mesh(new THREE.BoxGeometry(widthX * 1.08, 0.16, 0.16), braceMat);
+                            diagStrut.position.set(0, by + 0.4, curZ);
+                            diagStrut.rotation.z = (t % 2 === 0) ? 0.42 : -0.42;
+                            rackGroup.add(diagStrut);
+                        }
+                    }
                 }
 
                 for (let t = 1; t <= tiers; t++) {
@@ -969,6 +1083,17 @@
                         }
                     }
                 }
+
+                // End-of-aisle WMS Computer Terminal on only 1 out of every 4 racks (no cables)
+                if (rackIndex % 4 === 0) {
+                    const endDir = (z < 0) ? 1 : -1;
+                    const endZ = (lengthZ / 2) * endDir;
+                    const rackPanel = createControlPanelUnit(0.75, 0.95, 0.18, 0x38bdf8, 0x0284c7);
+                    rackPanel.position.set(-widthX / 2, 3.6, endZ + endDir * 0.32);
+                    if (endDir < 0) rackPanel.rotation.y = Math.PI;
+                    rackGroup.add(rackPanel);
+                }
+
                 rackGroup.position.set(x, 0, z); scene.add(rackGroup);
                 addBoxCollider(x, z, widthX + 0.6, lengthZ + 0.6, 'Storage Rack');
             }
@@ -992,9 +1117,6 @@
             createIndustrialRack(280, 38, 44, 4);
             createIndustrialRack(298, 38, 44, 4);
 
-            const robotArms = [];
-            const laserHeads = [];
-
             function createWeldingRobotCell(x, z) {
                 const cellGroup = new THREE.Group();
                 const pedestalMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.6, roughness: 0.4 });
@@ -1015,35 +1137,83 @@
                 base.castShadow = true;
                 cellGroup.add(base);
 
+                // Articulated multi-joint robotic welder hierarchy
                 const turret = new THREE.Group();
                 turret.position.set(0, 1.6, -1.5);
+
                 const shoulder = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1.8, 1.6), robotYellowMat);
                 shoulder.position.y = 0.9;
+                shoulder.castShadow = true;
                 turret.add(shoulder);
 
-                const lowerArm = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.45, 4.2, 12), robotYellowMat);
-                lowerArm.position.set(0, 3.2, 0.8);
-                lowerArm.rotation.x = 0.45;
-                turret.add(lowerArm);
+                const shoulderServo = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.48, 1.9, 14), pedestalMat);
+                shoulderServo.rotation.z = Math.PI / 2;
+                shoulderServo.position.set(0, 1.35, 0.15);
+                turret.add(shoulderServo);
 
-                const upperArm = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.65, 3.8), robotYellowMat);
-                upperArm.position.set(0, 4.8, 2.6);
-                upperArm.rotation.x = 0.35;
-                turret.add(upperArm);
+                // Lower Arm Pivot (Shoulder Joint)
+                const lowerArmPivot = new THREE.Group();
+                lowerArmPivot.position.set(0, 1.35, 0.15);
+                lowerArmPivot.rotation.x = 0.42;
 
-                const torch = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.08, 1.1, 8), pedestalMat);
-                torch.position.set(0, 4.0, 4.2);
-                torch.rotation.x = Math.PI / 4;
-                turret.add(torch);
+                const lowerArm = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.45, 3.6, 12), robotYellowMat);
+                lowerArm.position.set(0, 1.75, 0);
+                lowerArm.castShadow = true;
+                lowerArmPivot.add(lowerArm);
 
-                const sparkGlow = new THREE.Mesh(
-                    new THREE.SphereGeometry(0.32, 8, 8),
-                    new THREE.MeshBasicMaterial({ color: 0x60a5fa })
-                );
-                sparkGlow.position.set(0, 3.5, 4.5);
-                turret.add(sparkGlow);
+                const elbowServo = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 1.3, 12), pedestalMat);
+                elbowServo.rotation.z = Math.PI / 2;
+                elbowServo.position.set(0, 3.45, 0);
+                lowerArmPivot.add(elbowServo);
 
+                // Upper Arm Pivot (Elbow Joint)
+                const upperArmPivot = new THREE.Group();
+                upperArmPivot.position.set(0, 3.45, 0);
+                upperArmPivot.rotation.x = -0.12;
+
+                const upperArm = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.62, 3.6), robotYellowMat);
+                upperArm.position.set(0, 0.1, 1.55);
+                upperArm.castShadow = true;
+                upperArmPivot.add(upperArm);
+
+
+
+                // Wrist & Torch Pivot
+                const wristPivot = new THREE.Group();
+                wristPivot.position.set(0, -0.05, 3.25);
+                wristPivot.rotation.x = Math.PI / 4;
+
+                const torch = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.08, 1.15, 10), pedestalMat);
+                torch.position.set(0, -0.45, 0.25);
+                wristPivot.add(torch);
+
+                const sparkGlowMat = new THREE.MeshStandardMaterial({
+                    color: 0x93c5fd,
+                    emissive: 0x3b82f6,
+                    emissiveIntensity: 2.2,
+                    roughness: 0.1
+                });
+                const sparkGlow = new THREE.Mesh(new THREE.SphereGeometry(0.34, 10, 10), sparkGlowMat);
+                sparkGlow.position.set(0, -0.95, 0.45);
+                wristPivot.add(sparkGlow);
+
+                upperArmPivot.add(wristPivot);
+                lowerArmPivot.add(upperArmPivot);
+                turret.add(lowerArmPivot);
                 cellGroup.add(turret);
+
+                // External PLC Control Cabinet & Operator Panel with glowing emissive screen/buttons
+                const plcStand = new THREE.Mesh(new THREE.BoxGeometry(1.1, 3.2, 0.9), pedestalMat);
+                plcStand.position.set(-3.4, 1.6, -3.1);
+                plcStand.castShadow = true;
+                cellGroup.add(plcStand);
+
+                const plcPanel = createControlPanelUnit(1.3, 1.05, 0.22, 0x38bdf8, 0x0284c7);
+                plcPanel.position.set(-3.4, 3.35, -2.75);
+                plcPanel.rotation.x = -0.22;
+                cellGroup.add(plcPanel);
+
+
 
                 [[-4.2, -3.5], [4.2, -3.5], [-4.2, 5.0], [4.2, 5.0]].forEach(([bx, bz]) => {
                     const post = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 3.6, 8), bollardYellowMat);
@@ -1054,7 +1224,15 @@
                 cellGroup.position.set(x, 0, z);
                 scene.add(cellGroup);
                 addBoxCollider(x, z + 0.6, 4.4, 4.6, 'Welding Robot');
-                robotArms.push({ turret, sparkGlow, phase: Math.random() * 10 });
+                robotArms.push({
+                    turret,
+                    lowerArmPivot,
+                    upperArmPivot,
+                    wristPivot,
+                    sparkGlow,
+                    sparkGlowMat,
+                    phase: Math.random() * 10
+                });
             }
 
             function createTubeBenderMachine(x, z) {
@@ -1068,42 +1246,83 @@
                 mainBed.castShadow = true;
                 machineGroup.add(mainBed);
 
+                // Side-mounted auxiliary hydraulic status panel on the machine bed
+                const sidePanel = createControlPanelUnit(1.25, 0.85, 0.18, 0x4ade80, 0x16a34a);
+                sidePanel.position.set(3.2, 1.35, 1.65);
+                machineGroup.add(sidePanel);
+
                 const bendHead = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.5, 2.9, 20), darkSteel);
                 bendHead.position.set(-5.8, 2.1, 0);
                 machineGroup.add(bendHead);
-
-                const dieWheel = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.1, 0.6, 20), steelMat);
-                dieWheel.position.set(-5.8, 3.6, 0);
-                machineGroup.add(dieWheel);
 
                 const longTube = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 11.5, 12), aluminumMat);
                 longTube.rotation.z = Math.PI / 2;
                 longTube.position.set(0, 3.5, 0);
                 machineGroup.add(longTube);
 
+                // Articulated Collet Pusher Carriage along the bed
+                const colletCarriage = new THREE.Group();
+                colletCarriage.position.set(3.4, 2.55, 0);
+                const carriageBlock = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.85, 2.1), darkSteel);
+                colletCarriage.add(carriageBlock);
+                const chuckCollar = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.48, 1.9, 14), steelMat);
+                chuckCollar.rotation.z = Math.PI / 2;
+                chuckCollar.position.set(0, 0.95, 0);
+                colletCarriage.add(chuckCollar);
+                machineGroup.add(colletCarriage);
+
+                // Articulated Rotating Bend Die & Swing Clamp Arm Group at (-5.8, 3.5, 0)
+                const bendSwingGroup = new THREE.Group();
+                bendSwingGroup.position.set(-5.8, 3.5, 0);
+
+                const dieWheel = new THREE.Mesh(new THREE.CylinderGeometry(1.15, 1.15, 0.65, 20), steelMat);
+                dieWheel.position.set(0, 0.1, 0);
+                bendSwingGroup.add(dieWheel);
+
+                const swingArm = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.55, 2.8), machineBlueMat);
+                swingArm.position.set(0, -0.2, 1.2);
+                bendSwingGroup.add(swingArm);
+
+                const clampBlock = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.65, 0.95), darkSteel);
+                clampBlock.position.set(0, 0.15, 1.85);
+                bendSwingGroup.add(clampBlock);
+
                 const bentTubeEnd = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 4.2, 12), aluminumMat);
                 bentTubeEnd.rotation.x = Math.PI / 2;
-                bentTubeEnd.position.set(-5.8, 3.5, 2.1);
-                machineGroup.add(bentTubeEnd);
+                bentTubeEnd.position.set(0, 0.0, 2.1);
+                bendSwingGroup.add(bentTubeEnd);
 
-                const consoleStand = new THREE.Mesh(new THREE.BoxGeometry(1.4, 3.8, 1.2), darkSteel);
-                consoleStand.position.set(-2.5, 1.9, 2.8);
+                machineGroup.add(bendSwingGroup);
+
+                // Operator Console Stand with Glowing Emissive HMI Control Panel & Indicator Buttons
+                const consoleStand = new THREE.Mesh(new THREE.BoxGeometry(1.4, 3.2, 1.1), darkSteel);
+                consoleStand.position.set(-2.5, 1.6, 2.8);
+                consoleStand.castShadow = true;
                 machineGroup.add(consoleStand);
 
-                const screen = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.9, 0.2), new THREE.MeshBasicMaterial({ color: 0x38bdf8 }));
-                screen.position.set(-2.5, 3.2, 3.4);
-                machineGroup.add(screen);
+                const benderHmiPanel = createControlPanelUnit(1.55, 1.15, 0.24, 0x38bdf8, 0x0284c7);
+                benderHmiPanel.position.set(-2.5, 3.45, 2.95);
+                benderHmiPanel.rotation.x = -0.25;
+                machineGroup.add(benderHmiPanel);
+
+
 
                 machineGroup.position.set(x, 0, z);
                 scene.add(machineGroup);
                 addBoxCollider(x, z, 9.8, 2.2, 'CNC Tube Bender');
+                tubeBenders.push({
+                    bendSwingGroup,
+                    colletCarriage,
+                    baseCarriageX: 3.4,
+                    phase: Math.random() * 8
+                });
             }
 
             function createTubeLaserMachine(x, z) {
                 const group = new THREE.Group();
                 const cyanBlueMat = new THREE.MeshStandardMaterial({ color: 0x0284c7, roughness: 0.35, metalness: 0.35 });
                 const darkEnclosureMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.5, metalness: 0.5 });
-                const safetyGlassMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, emissive: 0x0284c7, emissiveIntensity: 0.4, roughness: 0.1 });
+                const safetyGlassMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, emissive: 0x0284c7, emissiveIntensity: 0.45, roughness: 0.1 });
 
                 const feedBed = new THREE.Mesh(new THREE.BoxGeometry(16.0, 2.4, 4.6), cyanBlueMat);
                 feedBed.position.set(0, 1.2, 0);
@@ -1126,16 +1345,48 @@
                     group.add(tube);
                 }
 
+                // Articulated Rotary Chuck Feeder Carriage on the Tube Laser
+                const chuckGroup = new THREE.Group();
+                chuckGroup.position.set(-4.2, 3.05, 0);
+                const chuckCarriage = new THREE.Mesh(new THREE.BoxGeometry(1.4, 1.3, 4.2), darkEnclosureMat);
+                chuckGroup.add(chuckCarriage);
+                const chuckSpinner = new THREE.Mesh(
+                    new THREE.CylinderGeometry(0.85, 0.85, 0.55, 12),
+                    new THREE.MeshStandardMaterial({ color: 0xfacc15, metalness: 0.5, roughness: 0.3 })
+                );
+                chuckSpinner.rotation.z = Math.PI / 2;
+                chuckSpinner.position.set(0.75, 0.15, 0);
+                chuckGroup.add(chuckSpinner);
+                group.add(chuckGroup);
+
+                // Operator Control Panel on front of the laser cabin
+                const laserPanel = createControlPanelUnit(1.5, 1.15, 0.22, 0x38bdf8, 0x0284c7);
+                laserPanel.position.set(2.2, 2.95, 2.72);
+                group.add(laserPanel);
+
+
+
                 group.position.set(x, 0, z);
                 scene.add(group);
                 addBoxCollider(x, z, 16.5, 5.4, 'Tube Laser');
+                tubeLasers.push({
+                    chuckGroup,
+                    chuckSpinner,
+                    baseX: -4.2,
+                    phase: Math.random() * 8
+                });
             }
 
             function createLaserCutterMachine(x, z) {
                 const group = new THREE.Group();
                 const redHousingMat = new THREE.MeshStandardMaterial({ color: 0xdc2626, roughness: 0.35, metalness: 0.3 });
                 const darkBedMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.5, metalness: 0.6 });
-                const laserGlowMat = new THREE.MeshBasicMaterial({ color: 0xfef08a });
+                const laserGlowMat = new THREE.MeshStandardMaterial({
+                    color: 0xfef08a,
+                    emissive: 0xf59e0b,
+                    emissiveIntensity: 2.4,
+                    roughness: 0.1
+                });
 
                 const bed = new THREE.Mesh(new THREE.BoxGeometry(16.5, 2.0, 6.2), darkBedMat);
                 bed.position.set(0, 1.0, 0);
@@ -1151,16 +1402,39 @@
                 enclosure.castShadow = true;
                 group.add(enclosure);
 
+                // Front & side control panels with glowing emissive screens and indicator buttons
+                const frontPanel = createControlPanelUnit(1.65, 1.25, 0.24, 0x38bdf8, 0x0284c7);
+                frontPanel.position.set(1.2, 3.1, 3.42);
+                group.add(frontPanel);
+
+                const sideDiagnosticPanel = createControlPanelUnit(1.3, 0.95, 0.2, 0x4ade80, 0x16a34a);
+                sideDiagnosticPanel.position.set(6.2, 3.1, -3.4);
+                sideDiagnosticPanel.rotation.y = Math.PI;
+                group.add(sideDiagnosticPanel);
+
+                // Articulated 2-Axis Gantry & Cutting Head Carriage
                 const gantry = new THREE.Group();
                 gantry.position.set(-3.5, 2.8, 0);
-                const bridge = new THREE.Mesh(new THREE.BoxGeometry(0.9, 1.2, 6.4), redHousingMat);
+                const bridge = new THREE.Mesh(new THREE.BoxGeometry(0.95, 1.2, 6.4), redHousingMat);
                 gantry.add(bridge);
-                const spark = new THREE.Mesh(new THREE.SphereGeometry(0.35, 8, 8), laserGlowMat);
-                spark.position.set(0, -0.5, 0);
-                gantry.add(spark);
+
+                const cuttingHeadGroup = new THREE.Group();
+                cuttingHeadGroup.position.set(0, 0.15, 0);
+                const headCarriage = new THREE.Mesh(new THREE.BoxGeometry(1.25, 1.35, 1.1), darkBedMat);
+                cuttingHeadGroup.add(headCarriage);
+                const nozzle = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.08, 0.85, 10), aluminumMat);
+                nozzle.position.set(0, -0.75, 0);
+                cuttingHeadGroup.add(nozzle);
+
+                const spark = new THREE.Mesh(new THREE.SphereGeometry(0.36, 10, 10), laserGlowMat);
+                spark.position.set(0, -1.05, 0);
+                cuttingHeadGroup.add(spark);
+                gantry.add(cuttingHeadGroup);
                 group.add(gantry);
 
-                laserHeads.push({ gantry, spark, baseX: -3.5, phase: Math.random() * 6 });
+
+
+                laserHeads.push({ gantry, cuttingHeadGroup, spark, baseX: -3.5, phase: Math.random() * 6 });
 
                 group.position.set(x, 0, z);
                 scene.add(group);
@@ -1171,6 +1445,7 @@
                 const group = new THREE.Group();
                 const orangePressMat = new THREE.MeshStandardMaterial({ color: 0xea580c, roughness: 0.4, metalness: 0.35 });
                 const darkBaseMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.6, metalness: 0.5 });
+                const steelRamMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.85, roughness: 0.2 });
 
                 const base = new THREE.Mesh(new THREE.BoxGeometry(8.5, 2.2, 7.2), darkBaseMat);
                 base.position.set(0, 1.1, 0);
@@ -1182,9 +1457,29 @@
                 cFrame.castShadow = true;
                 group.add(cFrame);
 
+                // Articulated reciprocating hydraulic punch ram & die turret
+                const pressRamGroup = new THREE.Group();
+                pressRamGroup.position.set(-2.2, 4.2, 0);
+                const ramCylinder = new THREE.Mesh(new THREE.CylinderGeometry(0.85, 0.85, 2.8, 16), steelRamMat);
+                pressRamGroup.add(ramCylinder);
+                const punchHead = new THREE.Mesh(new THREE.BoxGeometry(2.1, 0.75, 2.4), darkBaseMat);
+                punchHead.position.y = -1.35;
+                pressRamGroup.add(punchHead);
+                group.add(pressRamGroup);
+
+                // Control panel mounted on the front of the Punch Press
+                const pressPanel = createControlPanelUnit(1.45, 1.1, 0.22, 0xfbbf24, 0xd97706);
+                pressPanel.position.set(1.4, 3.4, 2.82);
+                group.add(pressPanel);
+
                 group.position.set(x, 0, z);
                 scene.add(group);
                 addBoxCollider(x, z, 8.8, 7.5, 'Punch Press');
+                punchPresses.push({
+                    pressRamGroup,
+                    baseY: 4.2,
+                    phase: Math.random() * 6
+                });
             }
 
             createWeldingRobotCell(-18, -10);
@@ -1575,7 +1870,7 @@
                 if (cargoType) cargoMount.add(buildCargoMesh(cargoType));
             }
 
-            // Floor Personnel (Yellow Shirt Employees with Baseball Caps & Temps)
+            // Floor Personnel (Compound THREE.Group Hierarchy: Torso, Head, Elevated Cap, Segmented Arms & Legs)
             const employees = [];
             function createEmployeeCharacter(type, startX, startZ, patrolAxis, patrolRange) {
                 const isEmployee = (type === 'employee');
@@ -1587,74 +1882,293 @@
                 const skinMat = new THREE.MeshStandardMaterial({ color: skinHex, roughness: 0.6 });
                 const shirtMat = new THREE.MeshStandardMaterial({ color: shirtHex, roughness: 0.5 });
                 const jeansMat = new THREE.MeshStandardMaterial({ color: 0x1e3a8a, roughness: 0.8 });
+                const bootMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.7, metalness: 0.2 });
+                const beltMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.5 });
 
-                const torso = new THREE.Mesh(new THREE.BoxGeometry(1.35, 1.85, 0.75), shirtMat);
-                torso.position.y = 2.65; torso.castShadow = true; charGroup.add(torso);
-                const head = new THREE.Mesh(new THREE.SphereGeometry(0.52, 16, 16), skinMat);
-                head.position.y = 4.15; charGroup.add(head);
+                // 1. Compound Torso Group (pivots from waist/hips at y = 2.65)
+                const torsoGroup = new THREE.Group();
+                torsoGroup.position.set(0, 2.65, 0);
 
-                if (isEmployee) {
-                    const capNavyMat = new THREE.MeshStandardMaterial({ color: 0x0b4f9c, roughness: 0.5 });
-                    const capAccentMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.4 });
+                const torsoMesh = new THREE.Mesh(new THREE.BoxGeometry(1.35, 1.82, 0.75), shirtMat);
+                torsoMesh.castShadow = true;
+                torsoGroup.add(torsoMesh);
 
-                    const capCrown = new THREE.Mesh(
-                        new THREE.SphereGeometry(0.54, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.55),
-                        capNavyMat
-                    );
-                    capCrown.position.set(0, 4.18, 0);
-                    charGroup.add(capCrown);
+                const beltMesh = new THREE.Mesh(new THREE.BoxGeometry(1.39, 0.22, 0.79), beltMat);
+                beltMesh.position.set(0, -0.82, 0);
+                torsoGroup.add(beltMesh);
 
-                    const capVisor = new THREE.Mesh(new THREE.BoxGeometry(0.74, 0.08, 0.58), capNavyMat);
-                    capVisor.position.set(0, 4.34, 0.52);
-                    capVisor.rotation.x = 0.12;
-                    charGroup.add(capVisor);
+                const badgeMesh = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.24, 0.32, 0.04),
+                    new THREE.MeshStandardMaterial({ color: isEmployee ? 0x0b4f9c : 0xfef08a, roughness: 0.3 })
+                );
+                badgeMesh.position.set(-0.36, 0.42, 0.39);
+                torsoGroup.add(badgeMesh);
 
-                    const capButton = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 8), capAccentMat);
-                    capButton.position.set(0, 4.72, 0);
-                    charGroup.add(capButton);
-                }
+                const neckMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.21, 0.32, 10), skinMat);
+                neckMesh.position.set(0, 1.02, 0);
+                torsoGroup.add(neckMesh);
+
+                // 2. Compound Head Group (child of torsoGroup, positioned at y = 1.50 -> world y = 4.15)
+                const headGroup = new THREE.Group();
+                headGroup.position.set(0, 1.50, 0);
+
+                const headMesh = new THREE.Mesh(new THREE.SphereGeometry(0.52, 18, 18), skinMat);
+                headMesh.castShadow = true;
+                headGroup.add(headMesh);
 
                 const eyeWhiteMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
                 const pupilMat = new THREE.MeshBasicMaterial({ color: 0x0f172a });
                 const browMat = new THREE.MeshBasicMaterial({ color: 0x271709 });
                 const mouthMat = new THREE.MeshBasicMaterial({ color: isEmployee ? 0x7f1d1d : 0x1e293b });
 
+                // Eyes sit at local y = 0.04 (world y = 4.19), Eyebrows at local y = 0.16 (world y = 4.31)
                 [-0.18, 0.18].forEach(ex => {
                     const eyeWhite = new THREE.Mesh(new THREE.SphereGeometry(0.085, 10, 10), eyeWhiteMat);
-                    eyeWhite.position.set(ex, 4.22, 0.45);
-                    charGroup.add(eyeWhite);
+                    eyeWhite.position.set(ex, 0.04, 0.45);
+                    headGroup.add(eyeWhite);
 
                     const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.048, 8, 8), pupilMat);
-                    pupil.position.set(ex, 4.22, 0.51);
-                    charGroup.add(pupil);
+                    pupil.position.set(ex, 0.04, 0.51);
+                    headGroup.add(pupil);
 
                     const eyebrow = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.04, 0.05), browMat);
-                    eyebrow.position.set(ex, 4.36, 0.46);
-                    eyebrow.rotation.z = isEmployee ? (ex > 0 ? -0.12 : 0.12) : 0;
-                    charGroup.add(eyebrow);
+                    eyebrow.position.set(ex, 0.16, 0.46);
+                    eyebrow.rotation.z = isEmployee ? (ex > 0 ? -0.10 : 0.10) : 0;
+                    headGroup.add(eyebrow);
+
+                    const ear = new THREE.Mesh(new THREE.SphereGeometry(0.11, 8, 8), skinMat);
+                    ear.position.set(ex > 0 ? 0.50 : -0.50, 0.02, 0);
+                    headGroup.add(ear);
                 });
 
                 const nose = new THREE.Mesh(new THREE.SphereGeometry(0.065, 8, 8), skinMat);
-                nose.position.set(0, 4.12, 0.53);
-                charGroup.add(nose);
+                nose.position.set(0, -0.04, 0.53);
+                headGroup.add(nose);
 
                 const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.055, 0.05), mouthMat);
-                mouth.position.set(0, 3.97, 0.47);
-                charGroup.add(mouth);
+                mouth.position.set(0, -0.19, 0.47);
+                headGroup.add(mouth);
 
-                const leftArm = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.18, 1.5, 10), skinMat);
-                leftArm.position.set(-0.9, 2.55, 0); charGroup.add(leftArm);
-                const rightArm = leftArm.clone(); rightArm.position.x = 0.9; charGroup.add(rightArm);
+                // 3. Dedicated Baseball Cap Group on Yellow-Shirt Employees
+                // Positioned high on the crown (local y = 0.25 -> world y = 4.40) with upward & forward tilted brim
+                // so the bill stays high above the eyebrows (4.31) and eyes (4.19) without any intersection
+                let capGroup = null;
+                if (isEmployee) {
+                    capGroup = new THREE.Group();
+                    capGroup.position.set(0, 0.25, 0);
 
-                const leftLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.22, 1.75, 10), jeansMat);
-                leftLeg.position.set(-0.35, 0.9, 0); charGroup.add(leftLeg);
-                const rightLeg = leftLeg.clone(); rightLeg.position.x = 0.35; charGroup.add(rightLeg);
+                    const capNavyMat = new THREE.MeshStandardMaterial({ color: 0x0b4f9c, roughness: 0.45 });
+                    const capAccentMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.35 });
+
+                    // Snug sweatband around upper crown
+                    const capBand = new THREE.Mesh(new THREE.CylinderGeometry(0.495, 0.51, 0.11, 20), capNavyMat);
+                    capBand.position.set(0, 0.02, 0);
+                    capGroup.add(capBand);
+
+                    // Elevated dome crown sitting cleanly atop the head
+                    const capCrown = new THREE.Mesh(
+                        new THREE.SphereGeometry(0.51, 18, 12, 0, Math.PI * 2, 0, Math.PI * 0.52),
+                        capNavyMat
+                    );
+                    capCrown.position.set(0, 0.02, 0);
+                    capCrown.castShadow = true;
+                    capGroup.add(capCrown);
+
+                    // Front NCC white emblem patch on crown
+                    const capLogoPatch = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.15, 0.04), capAccentMat);
+                    capLogoPatch.position.set(0, 0.16, 0.46);
+                    capLogoPatch.rotation.x = -0.22;
+                    capGroup.add(capLogoPatch);
+
+                    // Top squatchee button
+                    const capButton = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 8), capAccentMat);
+                    capButton.position.set(0, 0.53, 0);
+                    capGroup.add(capButton);
+
+                    // Upward and forward tilted visor assembly (negative X rotation pitches +Z brim upward)
+                    const brimPivot = new THREE.Group();
+                    brimPivot.position.set(0, 0.04, 0.44);
+                    brimPivot.rotation.x = -0.22;
+
+                    const capVisor = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.065, 0.52), capNavyMat);
+                    capVisor.position.set(0, 0.02, 0.24);
+                    capVisor.castShadow = true;
+                    brimPivot.add(capVisor);
+
+                    const visorTrim = new THREE.Mesh(new THREE.BoxGeometry(0.73, 0.025, 0.08), capAccentMat);
+                    visorTrim.position.set(0, 0.045, 0.47);
+                    brimPivot.add(visorTrim);
+
+                    capGroup.add(brimPivot);
+                    headGroup.add(capGroup);
+                } else {
+                    // Short Dreadlock Hairstyle for Red-Shirt Temp workers
+                    const dreadsGroup = new THREE.Group();
+                    const dreadMat = new THREE.MeshStandardMaterial({ color: 0x1c1917, roughness: 0.9 });
+                    const dreadTipMat = new THREE.MeshStandardMaterial({ color: 0x292524, roughness: 0.85 });
+
+                    // Base scalp hair cap on top of crown
+                    const scalpCap = new THREE.Mesh(
+                        new THREE.SphereGeometry(0.525, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.46),
+                        dreadMat
+                    );
+                    scalpCap.position.set(0, 0.06, -0.02);
+                    dreadsGroup.add(scalpCap);
+
+                    // Ring of short hanging dreadlocks around the sides, back, and crown (clearing the face/eyes)
+                    const totalLocs = 18;
+                    for (let i = 0; i < totalLocs; i++) {
+                        // Angle spans from ~55 deg (right temple) around the back to ~305 deg (left temple)
+                        const angle = 0.95 + (i / (totalLocs - 1)) * (Math.PI * 2 - 1.9);
+                        const sinA = Math.sin(angle);
+                        const cosA = Math.cos(angle);
+                        const locLen = 0.42 + (i % 3) * 0.07;
+                        const locRadius = 0.075;
+
+                        const locPivot = new THREE.Group();
+                        locPivot.position.set(sinA * 0.46, 0.22, cosA * 0.46);
+                        // Tilt slightly outward from the head
+                        locPivot.rotation.z = -sinA * 0.28;
+                        locPivot.rotation.x = cosA * 0.28;
+
+                        // Segmented dreadlock cylinder + rounded tip
+                        const locStrand = new THREE.Mesh(
+                            new THREE.CylinderGeometry(locRadius * 0.88, locRadius, locLen, 8),
+                            dreadMat
+                        );
+                        locStrand.position.y = -locLen / 2;
+                        locStrand.castShadow = true;
+                        locPivot.add(locStrand);
+
+                        const locTip = new THREE.Mesh(
+                            new THREE.SphereGeometry(locRadius * 0.95, 8, 8),
+                            dreadTipMat
+                        );
+                        locTip.position.y = -locLen;
+                        locPivot.add(locTip);
+
+                        dreadsGroup.add(locPivot);
+                    }
+
+                    // Upper crown short locks for volume on top of the head
+                    const crownLocCoords = [
+                        [-0.22, 0.44,  0.18,  0.35,  0.35],
+                        [ 0.0,  0.46,  0.22,  0.38,  0.0 ],
+                        [ 0.22, 0.44,  0.18,  0.35, -0.35],
+                        [-0.28, 0.42, -0.10, -0.25,  0.45],
+                        [ 0.28, 0.42, -0.10, -0.25, -0.45],
+                        [ 0.0,  0.46, -0.22, -0.42,  0.0 ],
+                        [-0.18, 0.45, -0.28, -0.45,  0.30],
+                        [ 0.18, 0.45, -0.28, -0.45, -0.30]
+                    ];
+                    crownLocCoords.forEach(([lx, ly, lz, rx, rz]) => {
+                        const topLoc = new THREE.Mesh(
+                            new THREE.CylinderGeometry(0.068, 0.078, 0.34, 8),
+                            dreadMat
+                        );
+                        topLoc.position.set(lx, ly, lz);
+                        topLoc.rotation.set(rx, 0, rz);
+                        topLoc.castShadow = true;
+                        dreadsGroup.add(topLoc);
+                    });
+
+                    headGroup.add(dreadsGroup);
+                }
+
+                torsoGroup.add(headGroup);
+
+                // 4. Segmented Arm Hierarchies (Shoulder Group -> Upper Arm + Elbow Group -> Forearm + Hand)
+                function buildSegmentedArm(sideSign) {
+                    const shoulderGroup = new THREE.Group();
+                    shoulderGroup.position.set(sideSign * 0.88, 0.72, 0);
+
+                    const sleeveCap = new THREE.Mesh(new THREE.SphereGeometry(0.22, 10, 10), shirtMat);
+                    shoulderGroup.add(sleeveCap);
+
+                    const upperArmMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.16, 0.72, 10), shirtMat);
+                    upperArmMesh.position.set(0, -0.34, 0);
+                    upperArmMesh.castShadow = true;
+                    shoulderGroup.add(upperArmMesh);
+
+                    const elbowGroup = new THREE.Group();
+                    elbowGroup.position.set(0, -0.70, 0);
+
+                    const elbowSphere = new THREE.Mesh(new THREE.SphereGeometry(0.15, 8, 8), skinMat);
+                    elbowGroup.add(elbowSphere);
+
+                    const forearmMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.13, 0.68, 10), skinMat);
+                    forearmMesh.position.set(0, -0.34, 0);
+                    forearmMesh.castShadow = true;
+                    elbowGroup.add(forearmMesh);
+
+                    const handMesh = new THREE.Mesh(new THREE.SphereGeometry(0.15, 10, 10), skinMat);
+                    handMesh.position.set(0, -0.70, 0.02);
+                    elbowGroup.add(handMesh);
+
+                    shoulderGroup.add(elbowGroup);
+                    return { shoulderGroup, elbowGroup };
+                }
+
+                const leftArmRig = buildSegmentedArm(-1);
+                const rightArmRig = buildSegmentedArm(1);
+                torsoGroup.add(leftArmRig.shoulderGroup);
+                torsoGroup.add(rightArmRig.shoulderGroup);
+                charGroup.add(torsoGroup);
+
+                // 5. Segmented Leg Hierarchies (Hip Group -> Thigh + Knee Group -> Calf + Work Boot)
+                function buildSegmentedLeg(sideSign) {
+                    const hipGroup = new THREE.Group();
+                    hipGroup.position.set(sideSign * 0.36, 1.76, 0);
+
+                    const hipJoint = new THREE.Mesh(new THREE.SphereGeometry(0.23, 8, 8), jeansMat);
+                    hipGroup.add(hipJoint);
+
+                    const thighMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.20, 0.86, 10), jeansMat);
+                    thighMesh.position.set(0, -0.43, 0);
+                    thighMesh.castShadow = true;
+                    hipGroup.add(thighMesh);
+
+                    const kneeGroup = new THREE.Group();
+                    kneeGroup.position.set(0, -0.86, 0);
+
+                    const kneeJoint = new THREE.Mesh(new THREE.SphereGeometry(0.19, 8, 8), jeansMat);
+                    kneeGroup.add(kneeJoint);
+
+                    const calfMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.16, 0.74, 10), jeansMat);
+                    calfMesh.position.set(0, -0.37, 0);
+                    calfMesh.castShadow = true;
+                    kneeGroup.add(calfMesh);
+
+                    const bootMesh = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.24, 0.56), bootMat);
+                    bootMesh.position.set(0, -0.78, 0.08);
+                    bootMesh.castShadow = true;
+                    kneeGroup.add(bootMesh);
+
+                    hipGroup.add(kneeGroup);
+                    return { hipGroup, kneeGroup };
+                }
+
+                const leftLegRig = buildSegmentedLeg(-1);
+                const rightLegRig = buildSegmentedLeg(1);
+                charGroup.add(leftLegRig.hipGroup);
+                charGroup.add(rightLegRig.hipGroup);
 
                 charGroup.position.set(startX, 0, startZ);
                 scene.add(charGroup);
 
                 employees.push({
-                    mesh: charGroup, leftLeg, rightLeg, leftArm, rightArm,
+                    mesh: charGroup,
+                    torsoGroup,
+                    headGroup,
+                    capGroup,
+                    leftLeg: leftLegRig.hipGroup,
+                    rightLeg: rightLegRig.hipGroup,
+                    leftKnee: leftLegRig.kneeGroup,
+                    rightKnee: rightLegRig.kneeGroup,
+                    leftArm: leftArmRig.shoulderGroup,
+                    rightArm: rightArmRig.shoulderGroup,
+                    leftElbow: leftArmRig.elbowGroup,
+                    rightElbow: rightArmRig.elbowGroup,
                     type, speed, axis: patrolAxis, originX: startX, originZ: startZ,
                     range: patrolRange, dir: 1, walkCycle: Math.random() * 10,
                     alive: true, respawnTimer: 0
@@ -1673,52 +2187,122 @@
 
             function buildDogMesh() {
                 const dogGroup = new THREE.Group();
-                const furMat = new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.75 });
-                const darkFurMat = new THREE.MeshStandardMaterial({ color: 0x271709, roughness: 0.8 });
-                const collarMat = new THREE.MeshBasicMaterial({ color: 0xdc2626 });
-                const eyeMat = new THREE.MeshBasicMaterial({ color: 0xfef08a });
+                const furMat = new THREE.MeshStandardMaterial({ color: 0x854d0e, roughness: 0.72 });
+                const darkFurMat = new THREE.MeshStandardMaterial({ color: 0x291507, roughness: 0.8 });
+                const tanFurMat = new THREE.MeshStandardMaterial({ color: 0xd97706, roughness: 0.7 });
+                const collarMat = new THREE.MeshStandardMaterial({ color: 0xdc2626, roughness: 0.35 });
+                const tagMat = new THREE.MeshStandardMaterial({ color: 0xfacc15, metalness: 0.8, roughness: 0.2 });
+                const eyeMat = new THREE.MeshStandardMaterial({ color: 0xfef08a, emissive: 0xf59e0b, emissiveIntensity: 0.8 });
 
-                const body = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.95, 2.25), furMat);
-                body.position.set(0, 1.15, 0);
-                body.castShadow = true;
-                dogGroup.add(body);
+                // Articulated Spine/Torso Group (heaves and pitches during quadruped gallop)
+                const bodyGroup = new THREE.Group();
+                bodyGroup.position.set(0, 1.15, 0);
 
-                const collar = new THREE.Mesh(new THREE.BoxGeometry(1.22, 0.98, 0.24), collarMat);
-                collar.position.set(0, 1.2, 0.92);
-                dogGroup.add(collar);
+                // Main Torso Box + Muscular Chest Box + Dark Saddle Marking
+                const torsoBox = new THREE.Mesh(new THREE.BoxGeometry(1.12, 0.92, 2.32), furMat);
+                torsoBox.castShadow = true;
+                bodyGroup.add(torsoBox);
 
-                const head = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.88, 0.98), furMat);
-                head.position.set(0, 1.72, 1.25);
-                dogGroup.add(head);
+                const chestBox = new THREE.Mesh(new THREE.BoxGeometry(1.18, 1.02, 0.98), tanFurMat);
+                chestBox.position.set(0, -0.04, 0.72);
+                chestBox.castShadow = true;
+                bodyGroup.add(chestBox);
 
-                const snout = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.45, 0.7), darkFurMat);
-                snout.position.set(0, 1.56, 1.9);
-                dogGroup.add(snout);
+                const saddleBox = new THREE.Mesh(new THREE.BoxGeometry(1.14, 0.28, 1.55), darkFurMat);
+                saddleBox.position.set(0, 0.35, -0.12);
+                bodyGroup.add(saddleBox);
+
+                const collar = new THREE.Mesh(new THREE.BoxGeometry(1.24, 1.04, 0.24), collarMat);
+                collar.position.set(0, 0.05, 0.96);
+                bodyGroup.add(collar);
+
+                const collarTag = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.04, 10), tagMat);
+                collarTag.rotation.x = Math.PI / 2;
+                collarTag.position.set(0, -0.52, 1.08);
+                bodyGroup.add(collarTag);
+
+                // Compound Head Group (pivots from neck at (0, 0.56, 1.18))
+                const headGroup = new THREE.Group();
+                headGroup.position.set(0, 0.56, 1.18);
+
+                const headBox = new THREE.Mesh(new THREE.BoxGeometry(0.96, 0.86, 0.98), furMat);
+                headBox.castShadow = true;
+                headGroup.add(headBox);
+
+                const snoutBox = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.42, 0.72), darkFurMat);
+                snoutBox.position.set(0, -0.10, 0.68);
+                headGroup.add(snoutBox);
+
+                const noseBox = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.16, 0.16), new THREE.MeshStandardMaterial({ color: 0x090d16, roughness: 0.3 }));
+                noseBox.position.set(0, 0.04, 1.04);
+                headGroup.add(noseBox);
+
+                // Articulated Lower Jaw for barking animation
+                const jawGroup = new THREE.Group();
+                jawGroup.position.set(0, -0.28, 0.38);
+                const lowerJaw = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.16, 0.62), darkFurMat);
+                lowerJaw.position.set(0, 0, 0.26);
+                jawGroup.add(lowerJaw);
+                headGroup.add(jawGroup);
 
                 [-0.32, 0.32].forEach(ex => {
-                    const ear = new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.48, 8), darkFurMat);
-                    ear.position.set(ex, 2.32, 1.15);
-                    dogGroup.add(ear);
+                    const ear = new THREE.Mesh(new THREE.ConeGeometry(0.21, 0.52, 8), darkFurMat);
+                    ear.position.set(ex, 0.62, -0.06);
+                    ear.rotation.z = ex > 0 ? -0.12 : 0.12;
+                    headGroup.add(ear);
 
-                    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 8), eyeMat);
-                    eye.position.set(ex * 0.72, 1.85, 1.74);
-                    dogGroup.add(eye);
+                    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.085, 8, 8), eyeMat);
+                    eye.position.set(ex * 0.74, 0.14, 0.48);
+                    headGroup.add(eye);
                 });
 
-                const tail = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.13, 0.95, 8), darkFurMat);
-                tail.position.set(0, 1.55, -1.25);
-                tail.rotation.x = -0.65;
-                dogGroup.add(tail);
+                bodyGroup.add(headGroup);
 
+                // Tapered Tail Group (pivots from base of spine at (0, 0.34, -1.16))
+                const tailGroup = new THREE.Group();
+                tailGroup.position.set(0, 0.34, -1.16);
+                const taperedTail = new THREE.Mesh(
+                    new THREE.CylinderGeometry(0.035, 0.15, 1.12, 10),
+                    darkFurMat
+                );
+                // Offset cylinder so pivot is at the thick tail base
+                taperedTail.position.set(0, 0.42, -0.34);
+                taperedTail.rotation.x = -0.68;
+                taperedTail.castShadow = true;
+                tailGroup.add(taperedTail);
+                bodyGroup.add(tailGroup);
+
+                // Four Pivoted Cylinder Legs attached at Shoulder/Hip Joints
                 const legs = [];
-                [[-0.38, 0.78], [0.38, 0.78], [-0.38, -0.78], [0.38, -0.78]].forEach(([lx, lz]) => {
-                    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.13, 1.0, 8), darkFurMat);
-                    leg.position.set(lx, 0.5, lz);
-                    dogGroup.add(leg);
-                    legs.push(leg);
+                [
+                    [-0.42, 0.82],
+                    [ 0.42, 0.82],
+                    [-0.42, -0.82],
+                    [ 0.42, -0.82]
+                ].forEach(([lx, lz]) => {
+                    const legPivot = new THREE.Group();
+                    legPivot.position.set(lx, -0.15, lz);
+
+                    const upperLegCyl = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.13, 0.56, 10), furMat);
+                    upperLegCyl.position.set(0, -0.26, 0);
+                    upperLegCyl.castShadow = true;
+                    legPivot.add(upperLegCyl);
+
+                    const lowerLegCyl = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.095, 0.54, 10), darkFurMat);
+                    lowerLegCyl.position.set(0, -0.72, 0);
+                    lowerLegCyl.castShadow = true;
+                    legPivot.add(lowerLegCyl);
+
+                    const pawBox = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.14, 0.30), darkFurMat);
+                    pawBox.position.set(0, -0.95, 0.06);
+                    legPivot.add(pawBox);
+
+                    bodyGroup.add(legPivot);
+                    legs.push(legPivot);
                 });
 
-                return { mesh: dogGroup, legs, tail };
+                dogGroup.add(bodyGroup);
+                return { mesh: dogGroup, bodyGroup, headGroup, jawGroup, legs, tail: tailGroup };
             }
 
             // Dynamic spawn interval so all dogs for any level can spawn within the 3-minute shift
@@ -1751,10 +2335,15 @@
 
                 activeDogs.push({
                     mesh: dogObj.mesh,
+                    bodyGroup: dogObj.bodyGroup,
+                    headGroup: dogObj.headGroup,
+                    jawGroup: dogObj.jawGroup,
                     legs: dogObj.legs,
                     tail: dogObj.tail,
                     speed: 0.23,
                     runCycle: Math.random() * 10,
+                    tailWagCycle: Math.random() * 10,
+                    barkPulse: 45,
                     barkTimer: 60 + Math.floor(Math.random() * 90),
                     fleeTimer: 0
                 });
@@ -2024,15 +2613,54 @@
                     updateHornCooldownHUD();
                 }
 
+                // Articulated Robotic Welders (Turret + Shoulder + Elbow + Wrist Torch + Pulsing Arc)
                 robotArms.forEach((rob, idx) => {
-                    rob.turret.rotation.y = Math.sin(time * 0.0022 + rob.phase + idx) * 0.75;
-                    const flash = (Math.sin(time * 0.035 + idx * 3) > 0.2);
+                    const t = time * 0.0024 + rob.phase + idx;
+                    rob.turret.rotation.y = Math.sin(t) * 0.78;
+                    if (rob.lowerArmPivot) rob.lowerArmPivot.rotation.x = 0.42 + Math.sin(t * 1.7) * 0.22;
+                    if (rob.upperArmPivot) rob.upperArmPivot.rotation.x = -0.12 + Math.cos(t * 1.7) * 0.26;
+                    if (rob.wristPivot) rob.wristPivot.rotation.z = Math.sin(t * 3.8) * 0.35;
+                    const flash = (Math.sin(time * 0.04 + idx * 3) > 0.15);
                     rob.sparkGlow.visible = flash;
+                    if (rob.sparkGlowMat && flash) {
+                        rob.sparkGlowMat.emissiveIntensity = 1.6 + Math.sin(time * 0.08 + idx) * 1.1;
+                    }
                 });
 
+                // Articulated CNC Tube Benders (Swinging Bend Die Arm + Sliding Collet Pusher)
+                tubeBenders.forEach((tb, idx) => {
+                    const cycle = time * 0.002 + tb.phase + idx;
+                    tb.bendSwingGroup.rotation.y = (Math.sin(cycle) * 0.5 + 0.5) * 1.35;
+                    tb.colletCarriage.position.x = tb.baseCarriageX - (Math.sin(cycle) * 0.5 + 0.5) * 3.2;
+                });
+
+                // Articulated 2-Axis Laser Cutters (Gantry X + Cutting Head Z + Vertical Beam)
                 laserHeads.forEach((lh, idx) => {
-                    lh.gantry.position.x = lh.baseX + Math.sin(time * 0.003 + lh.phase) * 2.5;
-                    lh.spark.visible = (Math.sin(time * 0.05 + idx) > 0);
+                    const t = time * 0.003 + lh.phase;
+                    lh.gantry.position.x = lh.baseX + Math.sin(t) * 2.6;
+                    if (lh.cuttingHeadGroup) {
+                        lh.cuttingHeadGroup.position.z = Math.cos(t * 1.8) * 1.95;
+                        lh.cuttingHeadGroup.position.y = 0.15 + Math.sin(t * 3.6) * 0.08;
+                    }
+                    lh.spark.visible = (Math.sin(time * 0.055 + idx) > -0.1);
+                });
+
+                // Articulated Tube Lasers (Sliding & Spinning Rotary Chuck)
+                tubeLasers.forEach((tl) => {
+                    const t = time * 0.0022 + tl.phase;
+                    tl.chuckGroup.position.x = tl.baseX + Math.sin(t) * 2.4;
+                    tl.chuckSpinner.rotation.x = time * 0.006;
+                });
+
+                // Articulated Hydraulic Punch Presses (Reciprocating Stamp Ram)
+                punchPresses.forEach((pp) => {
+                    const stampWave = Math.pow(Math.max(0, Math.sin(time * 0.0045 + pp.phase)), 4);
+                    pp.pressRamGroup.position.y = pp.baseY - stampWave * 0.85;
+                });
+
+                // Subtle Pulsing Emissive Control Panel Indicator LEDs
+                emissiveIndicators.forEach((ind) => {
+                    ind.mat.emissiveIntensity = ind.baseIntensity + Math.sin(time * 0.005 + ind.phase) * 0.35;
                 });
 
                 for (let i = activeRockets.length - 1; i >= 0; i--) {
@@ -2187,17 +2815,45 @@
                         if (!blockedX) dog.mesh.position.x = candX;
                         if (!blockedZ) dog.mesh.position.z = candZ;
 
-                        dog.runCycle += (isFleeing ? 0.5 : 0.34) * dt;
-                        dog.legs[0].rotation.x = Math.sin(dog.runCycle) * 0.75;
-                        dog.legs[1].rotation.x = -Math.sin(dog.runCycle) * 0.75;
-                        dog.legs[2].rotation.x = -Math.sin(dog.runCycle) * 0.75;
-                        dog.legs[3].rotation.x = Math.sin(dog.runCycle) * 0.75;
-                        dog.tail.rotation.z = Math.sin(dog.runCycle * 1.5) * 0.4;
+                        // Fast Quadruped Running Gallop Animation Cycle (asymmetric rotary gallop with spine heave/pitch)
+                        dog.runCycle += (isFleeing ? 0.68 : 0.52) * dt;
+                        const gPhase = dog.runCycle;
+                        dog.legs[0].rotation.x = Math.sin(gPhase) * 0.96;
+                        dog.legs[1].rotation.x = Math.sin(gPhase + 0.55) * 0.96;
+                        dog.legs[2].rotation.x = Math.sin(gPhase + Math.PI) * 0.96;
+                        dog.legs[3].rotation.x = Math.sin(gPhase + Math.PI + 0.55) * 0.96;
+
+                        if (dog.bodyGroup) {
+                            dog.bodyGroup.position.y = 1.15 + Math.abs(Math.sin(gPhase)) * 0.22;
+                            dog.bodyGroup.rotation.x = Math.cos(gPhase) * 0.16;
+                        }
+
+                        if (dog.barkPulse > 0) {
+                            dog.barkPulse = Math.max(0, dog.barkPulse - dt);
+                        }
+
+                        // High-Frequency Tail Wagging when chasing the forklift or barking
+                        const isBarkingNow = dog.barkPulse > 0;
+                        const wagSpeed = isBarkingNow ? 2.45 : (!isFleeing ? 1.75 : 0.95);
+                        dog.tailWagCycle = (dog.tailWagCycle || 0) + wagSpeed * dt;
+                        const wagAmp = isBarkingNow ? 0.78 : (!isFleeing ? 0.56 : 0.25);
+                        dog.tail.rotation.z = Math.sin(dog.tailWagCycle) * wagAmp;
+                        dog.tail.rotation.y = Math.cos(dog.tailWagCycle) * (wagAmp * 0.6);
+
+                        if (dog.headGroup) {
+                            dog.headGroup.rotation.x = -Math.cos(gPhase) * 0.10 - (isBarkingNow ? Math.abs(Math.sin(dog.tailWagCycle * 0.8)) * 0.18 : 0);
+                        }
+                        if (dog.jawGroup) {
+                            dog.jawGroup.rotation.x = isBarkingNow ? (0.15 + Math.abs(Math.sin(dog.tailWagCycle * 1.1)) * 0.35) : 0.08;
+                        }
 
                         if (!isFleeing) {
                             dog.barkTimer -= dt;
                             if (dog.barkTimer <= 0) {
-                                if (distToForklift < 85) playDogBarkSound();
+                                if (distToForklift < 85) {
+                                    playDogBarkSound();
+                                    dog.barkPulse = 50;
+                                }
                                 dog.barkTimer = 130 + Math.floor(Math.random() * 110);
                             }
 
@@ -2225,11 +2881,28 @@
                     }
 
                     const empStep = emp.speed * 0.75 * dt;
-                    emp.walkCycle += empStep * 0.65;
-                    emp.leftLeg.rotation.x = Math.sin(emp.walkCycle) * 0.55;
-                    emp.rightLeg.rotation.x = -Math.sin(emp.walkCycle) * 0.55;
-                    emp.leftArm.rotation.x = -Math.sin(emp.walkCycle) * 0.45;
-                    emp.rightArm.rotation.x = Math.sin(emp.walkCycle) * 0.45;
+                    emp.walkCycle += empStep * 1.45;
+                    const swing = Math.sin(emp.walkCycle);
+                    const counterSwing = Math.cos(emp.walkCycle);
+
+                    // Natural hip/shoulder swing and segmented knee/elbow flex tied to walking speed
+                    emp.leftLeg.rotation.x = swing * 0.68;
+                    emp.rightLeg.rotation.x = -swing * 0.68;
+                    if (emp.leftKnee) emp.leftKnee.rotation.x = Math.max(0, -swing * 0.65 + counterSwing * 0.25);
+                    if (emp.rightKnee) emp.rightKnee.rotation.x = Math.max(0, swing * 0.65 - counterSwing * 0.25);
+
+                    emp.leftArm.rotation.x = -swing * 0.58;
+                    emp.rightArm.rotation.x = swing * 0.58;
+                    if (emp.leftElbow) emp.leftElbow.rotation.x = -0.22 - Math.max(0, -swing) * 0.42;
+                    if (emp.rightElbow) emp.rightElbow.rotation.x = -0.22 - Math.max(0, swing) * 0.42;
+
+                    if (emp.torsoGroup) {
+                        emp.torsoGroup.position.y = 2.65 + Math.abs(swing) * 0.08;
+                        emp.torsoGroup.rotation.y = swing * 0.08;
+                    }
+                    if (emp.headGroup) {
+                        emp.headGroup.rotation.y = -swing * 0.06;
+                    }
 
                     if (emp.axis === 'z') {
                         emp.mesh.position.z += empStep * emp.dir;
