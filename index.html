@@ -722,7 +722,7 @@
                 addBoxCollider(px, pz, 2.0, 2.0, 'Steel Column');
             });
 
-            // Front Offices (West Plant - Unchanged)
+            // Front Offices (West Plant)
             const officeGroup = new THREE.Group();
             const officeW = 34; const officeD = 68;
             const officeX = PLANT_MIN_X + officeW / 2 + 1; const officeZ = 8;
@@ -807,7 +807,6 @@
                 eastSign.position.set(boX + boW / 2 + 0.15, 22.8, boZ);
                 boGroup.add(eastSign);
 
-                // Continuous 1st and 2nd floor windows
                 for (let wz = boZ - 28; wz <= boZ + 28; wz += 9.3) {
                     [6.8, 16.5].forEach(wy => {
                         const wFrameW = new THREE.Mesh(new THREE.BoxGeometry(0.4, 4.2, 6.8), windowFrameMat);
@@ -826,7 +825,6 @@
                     });
                 }
 
-                // 1st Floor North & South Doors
                 const northDoorFrame = new THREE.Mesh(new THREE.BoxGeometry(5.2, 8.2, 0.6), doorFrameMat);
                 northDoorFrame.position.set(boX, 4.1, boZ - boD / 2 - 0.1);
                 boGroup.add(northDoorFrame);
@@ -847,7 +845,6 @@
                 southDoorGlass.position.set(boX, 5.2, boZ + boD / 2 + 0.18);
                 boGroup.add(southDoorGlass);
 
-                // 2 Yellow Staircases on West side leading to 2nd Floor Doors
                 function buildYellowStairway(doorZ, dirZ) {
                     const stairX = boX - boW / 2 - 2.4;
                     const landingY = 12.8;
@@ -1724,6 +1721,18 @@
                 return { mesh: dogGroup, legs, tail };
             }
 
+            // Dynamic spawn interval so all dogs for any level can spawn within the 3-minute shift
+            function getNextDogSpawnIntervalFrames() {
+                if (totalDogsForLevel <= 8) {
+                    return 260 + Math.floor(Math.random() * 140);
+                }
+                // Budget ~145 seconds (8700 frames) for all dogs in high levels to finish spawning
+                const targetWindowFrames = 8700;
+                const avgFrames = Math.max(30, Math.floor(targetWindowFrames / totalDogsForLevel));
+                const jitter = Math.max(10, Math.floor(avgFrames * 0.3));
+                return Math.max(24, avgFrames - Math.floor(jitter / 2) + Math.floor(Math.random() * jitter));
+            }
+
             function spawnDogFromRandomBayDoor() {
                 if (bayDoorSpawnCoords.length === 0) return;
 
@@ -2135,7 +2144,7 @@
                         nextDogSpawnTimer -= dt;
                         if (nextDogSpawnTimer <= 0) {
                             spawnDogFromRandomBayDoor();
-                            nextDogSpawnTimer = 260 + Math.floor(Math.random() * 140);
+                            nextDogSpawnTimer = getNextDogSpawnIntervalFrames();
                         }
                     }
 
@@ -2610,9 +2619,8 @@
                 renderer.setSize(window.innerWidth, window.innerHeight);
             });
 
-            window.onload = function() {
-                animate(0);
-            };
+            // Start 3D loop immediately so preview and GitHub Pages never hang on onload
+            animate(0);
         })();
     </script>
 </body>
